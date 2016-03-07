@@ -1,0 +1,26 @@
+"""
+HTTP server, providing Admin interface and some APIs.
+"""
+
+
+from sunhead.workers.http.server import Server
+
+rest_urlconf = tuple()
+
+
+REST_URL_PREFIX = "/api/1.0"
+
+
+class AeroportHTTPServer(Server):
+
+    @property
+    def app_name(self):
+        return "AeroportHTTPServer"
+
+    def _map_to_prefix(self, urlprefix: str, urlconf: tuple) -> tuple:
+        mapped = ((method, urlprefix + url, view) for method, url, view in urlconf)
+        return tuple(mapped)
+
+    def get_urlpatterns(self):
+        urls = self._map_to_prefix(REST_URL_PREFIX, rest_urlconf)
+        return urls
