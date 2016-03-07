@@ -1,16 +1,139 @@
 """
 Abstracts and bases for building adapters, item definitions, etc...
+
+Payload abstractions taken from Scrapy projects.
 """
 
 from abc import ABCMeta, abstractmethod
-from collections import namedtuple
+from collections import namedtuple, MutableMapping
 from typing import Tuple
 
 from sunhead.conf import settings
-from sunhead.utils import get_submodule_list
+from sunhead.utils import get_submodule_list, get_class_by_path
 
 AirlineDescription = namedtuple("AirlineDescription", "name module_path")
 OriginDescription = namedtuple("OriginDescription", "name module_path")
+
+
+class AbstractField(dict):
+    pass
+
+
+class InheritableFieldsMeta(ABCMeta):
+    # This was ItemMeta from Scrapy
+
+    def __new__(mcs, class_name, bases, attrs):
+        # Collect fields from base classes and put to this one
+        new_bases = tuple(base._class for base in bases if hasattr(base, '_class'))
+        _class = super().__new__(mcs, 'x_' + class_name, new_bases, attrs)
+
+        fields = getattr(_class, 'fields', {})
+        new_attrs = {}
+        for n in dir(_class):
+            v = getattr(_class, n)
+            if isinstance(v, AbstractField):
+                fields[n] = v
+            elif n in attrs:
+                new_attrs[n] = attrs[n]
+
+        new_attrs['fields'] = fields
+        new_attrs['_class'] = _class
+        return super().__new__(mcs, class_name, bases, new_attrs)
+
+
+class DictItem(MutableMapping):
+    # This was DictItem from Scrapy
+
+    fields = {}
+
+    def __init__(self, *args, **kwargs):
+        self._values = {}
+        if args or kwargs:  # avoid creating dict for most common case
+            for k, v in dict(*args, **kwargs).items():
+                self[k] = v
+
+    def __getitem__(self, key):
+        return self._values[key]
+
+    def __setitem__(self, key, value):
+        if key in self.fields:
+            self._values[key] = value
+        else:
+            raise KeyError("%s does not support field: %s" %
+                (self.__class__.__name__, key))
+
+    def __delitem__(self, key):
+        del self._values[key]
+
+    def __getattr__(self, name):
+        if name in self.fields:
+            raise AttributeError("Use item[%r] to get field value" % name)
+        raise AttributeError(name)
+
+    def __setattr__(self, name, value):
+        if not name.startswith('_'):
+            raise AttributeError("Use item[%r] = %r to set field value" %
+                (name, value))
+        super().__setattr__(name, value)
+
+    def __len__(self):
+        return len(self._values)
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def keys(self):
+        return self._values.keys()
+
+    def copy(self):
+        return self.__class__(self)
+
+
+class AbstractPayload(DictItem, metaclass=InheritableFieldsMeta):
+
+    @property
+    def as_dict(self):
+        return self._values
+
+
+class AbstractDestination(object, metaclass=ABCMeta):
+
+    def __init__(self, **init_kwargs):
+        pass
+
+    @abstractmethod
+    async def process_payload(self, payload: AbstractPayload) -> None:
+        pass
+
+
+class AbstractOrigin(object, metaclass=ABCMeta):
+
+    def __init__(self):
+        self._destination = None
+
+    def set_destination(self, class_path: str, **init_kwargs) -> None:
+        kls = get_class_by_path(class_path)
+        self._destination = kls(**init_kwargs)
+
+    @abstractmethod
+    async def process(self) -> None:
+        pass
+
+    @property
+    @abstractmethod
+    def default_destination(self):
+        pass
+
+    @property
+    def destination(self):
+        if self._destination is None:
+            self._destination = self.default_destination
+        return self._destination
+
+    async def send_to_destination(self, payload: AbstractPayload) -> None:
+        if self.destination is None:
+            raise ValueError("You must set destination first")
+        await self.destination.process_payload(payload)
 
 
 class AbstractAirline(object, metaclass=ABCMeta):
@@ -53,11 +176,7 @@ class AbstractAirline(object, metaclass=ABCMeta):
         return result
 
     def get_origin(self, origin_name) -> AbstractOrigin:
-        pass
-
-
-class AbstractOrigin(object, metaclass=ABCMeta):
-
-    @abstractmethod
-    def process(self) -> None:
-        pass
+        origin_class_path = "{}.{}.Origin".format(self.origins_mount_point, origin_name)
+        kls = get_class_by_path(origin_class_path)
+        origin = kls()
+        return origin

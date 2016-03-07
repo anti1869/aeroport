@@ -3,10 +3,21 @@ Command line interface commands, available in this app.
 """
 
 import argparse
+import asyncio
+from typing import Any
 
 from sunhead.cli.abc import Command
 
 from aeroport import management
+
+
+class RunInLoopMixin(object):
+
+    def run_in_loop(self, coro) -> Any:
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(coro)
+        return result
+
 
 
 class Airlines(Command):
@@ -48,15 +59,19 @@ class Origins(Command):
         return parser_command
 
 
-class Process(Command):
+class Process(RunInLoopMixin, Command):
     """
     Callable for run processing of one origin of one airline
     """
 
     def handler(self, options) -> None:
         """Run collecting data"""
-        print(options)
-        print("test ok")
+        airline = management.get_airline(options["airline"])
+        origin = airline.get_origin(options["origin"])
+
+        # TODO: Set destination here
+
+        self.run_in_loop(origin.process())
 
     def get_parser(self):
         parser_command = argparse.ArgumentParser(description=self.handler.__doc__)
