@@ -1,0 +1,4 @@
+"""
+Base application settings.
+"""
+

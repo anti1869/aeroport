@@ -1,0 +1,3 @@
+"""
+Abstracts and bases for building adapters, item definitions, etc...
+"""
