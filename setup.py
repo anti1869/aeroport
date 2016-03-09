@@ -40,6 +40,7 @@ setup(
     install_requires=[
         "colorlog",
         # "sunhead",
+        "splinter",
     ],
     entry_points={
         'console_scripts': [
