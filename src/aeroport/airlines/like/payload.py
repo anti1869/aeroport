@@ -14,8 +14,10 @@ class ShopItem(Payload):
     price = Field()
     oldprice = Field()
     discount = Field()
-    # shop_id
     # long_id
     brand_id = Field()
     shop_title = Field()
+    shop_name = Field()
     primary_local_category_id = Field()
+    category_name = Field()
+

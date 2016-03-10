@@ -7,6 +7,7 @@ import logging
 
 from bs4 import BeautifulSoup
 
+from aeroport.abc import UrlInfo
 from aeroport.scraping import (
     AbstractUrlGenerator, AiohttpDownloader, AbstractItemAdapter, SchemeItem,
     AiohttpScrapingOrigin, BrowserScrapingOrigin,
@@ -17,13 +18,17 @@ from aeroport.airlines.like.payload import ShopItem
 
 logger = logging.getLogger(__name__)
 
+SHOP_TITLE = "Zappos"
+SHOP_NAME = "zappos"
+SHOP_URL = "http://zappos.com"
+
 
 class ZapposUrlGenerator(AiohttpDownloader, AbstractUrlGenerator):
 
     FALLBACK_MAX_PAGE = 1
 
-    url_pattern = "http://www.zappos.com/{category_name}{code1}#!/" \
-                  "{category_name_page}-page{page_number}/{code2}.zso?p={page_number_zero}"
+    url_pattern = "%s/{category_name}{code1}#!/" \
+                  "{category_name_page}-page{page_number}/{code2}.zso?p={page_number_zero}" % SHOP_URL
 
     category_mapping = (
         {
@@ -90,7 +95,7 @@ class ZapposUrlGenerator(AiohttpDownloader, AbstractUrlGenerator):
         self._categories_gen = (c for c in self.category_mapping)
         self._processing_category = None
 
-    async def __anext__(self):
+    async def __anext__(self) -> UrlInfo:
         if not self._processing_category or self._current_page >= self._max_page:
             self._processing_category = next(self._categories_gen, None)
             if self._processing_category is None:
@@ -106,7 +111,10 @@ class ZapposUrlGenerator(AiohttpDownloader, AbstractUrlGenerator):
             page_number=self._current_page,
             page_number_zero=self._current_page - 1,
             **self._processing_category)
-        return url
+
+        url_info = UrlInfo(url=url, kwargs=self._processing_category)
+
+        return url_info
 
     async def get_max_page_number(self, category):
         url = self.url_pattern.format(page_number=1, page_number_zero=0, **category)
@@ -149,7 +157,7 @@ class ZapposItemAdapter(AbstractItemAdapter):
 
         # Assign other fields
         try:
-            item_data["url"] = "http://zappos.com" + raw_item["href"]
+            item_data["url"] = SHOP_URL + raw_item["href"]
             item_data["original_id"] = "{}{}".format(
                 raw_item["data-product-id"], raw_item["data-style-id"]
             )
@@ -166,9 +174,12 @@ class ZapposItemAdapter(AbstractItemAdapter):
             discount_match = re.search('\$([0-9\.]+)\)', discount_str)
             old_price = float(discount_match.group(1))
         except (ValueError, AttributeError):
-            old_price = 0
+            old_price = 0.0
 
         item_data["oldprice"] = old_price
+        item_data["discount"] = round(100 - round(100 * item_data["price"] / item_data["oldprice"])) \
+            if item_data["oldprice"] else 0
+
         return item_data
 
 
@@ -186,3 +197,9 @@ class Origin(AiohttpScrapingOrigin):
     @property
     def default_destination(self):
         return ConsoleDestination()
+
+    def postprocess_payload(self, payload: ShopItem, **kwargs) -> None:
+        payload["primary_local_category_id"] = kwargs.get("primary_local_category_id", None)
+        payload["category_name"] = kwargs.get("category_name", None)
+        payload["shop_title"] = SHOP_TITLE
+        payload["shop_name"] = SHOP_NAME

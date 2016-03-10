@@ -6,11 +6,14 @@ import asyncio
 from collections import namedtuple
 from functools import partial
 import logging
+from typing import Dict
 
 import aiohttp
 from splinter import Browser
 
-from aeroport.abc import AbstractOrigin, AbstractDownloader, AbstractUrlGenerator, AbstractItemAdapter
+from aeroport.abc import (
+    AbstractOrigin, AbstractDownloader, AbstractUrlGenerator, AbstractItemAdapter, AbstractPayload,
+)
 from aeroport.proxy import ProxyCollection
 
 
@@ -103,12 +106,16 @@ class ScrapingOrigin(AbstractDownloader, AbstractOrigin):
     async def process(self):
         for scheme in self.SCRAPE_SCHEMES:
             adapters = tuple((cls(**init_kwargs) for cls, init_kwargs in scheme.adapters))
-            async for url in scheme.urlgenerator():
-                html = await self.get_html_from_url(url)
+            async for url_info in scheme.urlgenerator():
+                html = await self.get_html_from_url(url_info.url)
                 for adapter in adapters:
                     for payload in adapter.gen_payload_from_html(html):
                         if payload is not None:
+                            self.postprocess_payload(payload, **url_info.kwargs)
                             await self.send_to_destination(payload)
+
+    def postprocess_payload(self, payload: AbstractPayload, **kwargs) -> None:
+        pass
 
 
 class BrowserScrapingOrigin(BrowserDownloader, ScrapingOrigin):

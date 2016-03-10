@@ -13,6 +13,7 @@ from sunhead.utils import get_submodule_list, get_class_by_path
 
 AirlineDescription = namedtuple("AirlineDescription", "name module_path")
 OriginDescription = namedtuple("OriginDescription", "name module_path")
+UrlInfo = namedtuple("UrlInfo", "url kwargs")
 
 
 class AbstractField(dict):
@@ -187,7 +188,7 @@ class AbstractUrlGenerator(AsyncIterable):
         return self
 
     @abstractmethod
-    async def __anext__(self):
+    async def __anext__(self) -> UrlInfo:
         pass
 
 
