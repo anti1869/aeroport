@@ -2,7 +2,9 @@
 HTTP server, providing Admin interface and some APIs.
 """
 
+import os
 
+from sunhead.cli.banners import print_banner
 from sunhead.workers.http.server import Server
 
 rest_urlconf = tuple()
@@ -24,3 +26,8 @@ class AeroportHTTPServer(Server):
     def get_urlpatterns(self):
         urls = self._map_to_prefix(REST_URL_PREFIX, rest_urlconf)
         return urls
+
+    def print_banner(self):
+        filename = os.path.join(os.path.dirname(__file__), "templates", "logo.txt")
+        print_banner(filename)
+        super().print_banner()
