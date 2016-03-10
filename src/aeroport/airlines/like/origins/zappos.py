@@ -133,6 +133,10 @@ class ZapposUrlGenerator(AiohttpDownloader, AbstractUrlGenerator):
 
 class ZapposItemAdapter(AbstractItemAdapter):
 
+    PRICE_CLASS = "price"
+
+    _shop_url = SHOP_URL
+
     def extract_raw_items_from_html(self, html):
         soup = BeautifulSoup(html, "html.parser")
         search_results_container = soup.find('div', {'id': 'searchResults'})
@@ -150,21 +154,15 @@ class ZapposItemAdapter(AbstractItemAdapter):
 
         item_data = ShopItem()
 
-        #
-        # # Assign local category id if possible
-        # if "category" in kwargs:
-        #     item_data.primary_local_category_id = kwargs["category"]["primary_local_category_id"]
-
-        # Assign other fields
         try:
-            item_data["url"] = SHOP_URL + raw_item["href"]
+            item_data["url"] = self._shop_url + raw_item["href"]
             item_data["original_id"] = "{}{}".format(
                 raw_item["data-product-id"], raw_item["data-style-id"]
             )
             item_data["thumbnail_uri"] = raw_item.find('img', {'class': 'productImg'})['src']
             item_data["brand_title"] = raw_item.find('span', {'class': 'brandName'}).text
             item_data["title"] = raw_item.find('span', {'class': 'productName'}).text
-            price_str = raw_item.find('span', {'class': 'price'}).text
+            price_str = raw_item.find('span', {'class': self.PRICE_CLASS}).text
             item_data["price"] = float(price_str.replace('$', ''))
         except (KeyError, AttributeError, ValueError):
             return None
@@ -194,6 +192,9 @@ class Origin(AiohttpScrapingOrigin):
         ),
     )
 
+    _shop_title = SHOP_TITLE
+    _shop_name = SHOP_NAME
+
     @property
     def default_destination(self):
         return ConsoleDestination()
@@ -201,5 +202,5 @@ class Origin(AiohttpScrapingOrigin):
     def postprocess_payload(self, payload: ShopItem, **kwargs) -> None:
         payload["primary_local_category_id"] = kwargs.get("primary_local_category_id", None)
         payload["category_name"] = kwargs.get("category_name", None)
-        payload["shop_title"] = SHOP_TITLE
-        payload["shop_name"] = SHOP_NAME
+        payload["shop_title"] = self._shop_title
+        payload["shop_name"] = self._shop_name
