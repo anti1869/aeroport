@@ -4,24 +4,28 @@ Adapter for the zappos.com items feed
 
 import re
 import logging
-import asyncio
-from functools import partial
 
 from bs4 import BeautifulSoup
 
-from aeroport.browserscraper import BrowserScraper
+from aeroport.scraping import (
+    AbstractUrlGenerator, AiohttpDownloader, AbstractItemAdapter, SchemeItem,
+    AiohttpScrapingOrigin, BrowserScrapingOrigin,
+)
+from aeroport.destinations.console import ConsoleDestination
 from aeroport.airlines.like.payload import ShopItem
 
 
 logger = logging.getLogger(__name__)
 
 
-class Origin(BrowserScraper):
+class ZapposUrlGenerator(AiohttpDownloader, AbstractUrlGenerator):
+
+    FALLBACK_MAX_PAGE = 1
 
     url_pattern = "http://www.zappos.com/{category_name}{code1}#!/" \
-              "{category_name_page}-page{page_number}/{code2}.zso?p={page_number_zero}"
+                  "{category_name_page}-page{page_number}/{code2}.zso?p={page_number_zero}"
 
-    category_mapping = [
+    category_mapping = (
         {
             "category_name": "handbags",
             "category_name_page": "handbags",
@@ -78,57 +82,34 @@ class Origin(BrowserScraper):
             "code2": "CLDXARDJ2QHiAgIBAg",
             "primary_local_category_id": 8,
         },
-    ]
+    )
 
-    def extract_raw_items_from_html(self, url):
+    def __init__(self):
+        self._max_page = 0
+        self._current_page = 0
+        self._categories_gen = (c for c in self.category_mapping)
+        self._processing_category = None
 
-        soup = BeautifulSoup(html, "html.parser")
-        search_results_container = soup.find('div', {'id': 'searchResults'})
-        raw_items_list = search_results_container.find_all('a', {'class': 'product'})
-        return raw_items_list
+    async def __anext__(self):
+        if not self._processing_category or self._current_page >= self._max_page:
+            self._processing_category = next(self._categories_gen, None)
+            if self._processing_category is None:
+                raise StopAsyncIteration
+            self._max_page = await self.get_max_page_number(self._processing_category)
+            self._current_page = 1
+        else:
+            raise StopAsyncIteration
+            self._current_page += 1
 
-    def adapt_raw_item(self, raw_item, **kwargs) -> ItemData:
-        """
-        Convert data from the raw html object data into ItemData object.
+        url = self.url_pattern.format(
+            page_number=self._current_page,
+            page_number_zero=self._current_page - 1,
+            **self._processing_category)
+        return url
 
-        :param raw_item: raw html object, representing item with the some interface.
-        :return: Adapted and fully function ItemData instance
-        :rtype: ItemData
-        """
-
-        item_data = ItemData()
-
-        # Assign local category id if possible
-        if "category" in kwargs:
-            item_data.primary_local_category_id = kwargs["category"]["primary_local_category_id"]
-
-        # Assign other fields
-        try:
-            item_data.url = "http://zappos.com" + raw_item["href"]
-            item_data.original_id = "{}{}".format(
-                raw_item['data-product-id'], raw_item['data-style-id']
-            )
-            item_data.thumbnail_uri = raw_item.find('img', {'class': 'productImg'})['src']
-            item_data.brand_title = raw_item.find('span', {'class': 'brandName'}).text
-            item_data.title = raw_item.find('span', {'class': 'productName'}).text
-            price_str = raw_item.find('span', {'class': 'price'}).text
-            item_data.price = float(price_str.replace('$', ''))
-        except (KeyError, AttributeError, ValueError):
-            return None
-
-        try:
-            discount_str = raw_item.find('span', {'class': 'discount'}).text
-            discount_match = re.search('\$([0-9\.]+)\)', discount_str)
-            old_price = float(discount_match.group(1))
-        except (ValueError, AttributeError):
-            old_price = 0
-
-        item_data.oldprice = old_price
-        return item_data
-
-    def get_max_page_number(self, category):
+    async def get_max_page_number(self, category):
         url = self.url_pattern.format(page_number=1, page_number_zero=0, **category)
-        html = self.download_url(url)
+        html = await self.get_html_from_url(url)
         soup = BeautifulSoup(html, "html.parser")
         try:
             last_span = soup.find('span', {'class': 'last'})
@@ -139,3 +120,68 @@ class Origin(BrowserScraper):
             return self.FALLBACK_MAX_PAGE
 
         return max_page
+
+
+class ZapposItemAdapter(AbstractItemAdapter):
+
+    def extract_raw_items_from_html(self, html):
+        soup = BeautifulSoup(html, "html.parser")
+        search_results_container = soup.find('div', {'id': 'searchResults'})
+        raw_items_list = search_results_container.find_all('a', {'class': 'product'})
+        return raw_items_list
+
+    def adapt_raw_item(self, raw_item) -> ShopItem:
+        """
+        Convert data from the raw html object data into Payload object.
+
+        :param raw_item: raw html object, representing item with the some interface.
+        :return: Adapted and fully function ItemData instance
+        :rtype: ItemData
+        """
+
+        item_data = ShopItem()
+
+        #
+        # # Assign local category id if possible
+        # if "category" in kwargs:
+        #     item_data.primary_local_category_id = kwargs["category"]["primary_local_category_id"]
+
+        # Assign other fields
+        try:
+            item_data["url"] = "http://zappos.com" + raw_item["href"]
+            item_data["original_id"] = "{}{}".format(
+                raw_item["data-product-id"], raw_item["data-style-id"]
+            )
+            item_data["thumbnail_uri"] = raw_item.find('img', {'class': 'productImg'})['src']
+            item_data["brand_title"] = raw_item.find('span', {'class': 'brandName'}).text
+            item_data["title"] = raw_item.find('span', {'class': 'productName'}).text
+            price_str = raw_item.find('span', {'class': 'price'}).text
+            item_data["price"] = float(price_str.replace('$', ''))
+        except (KeyError, AttributeError, ValueError):
+            return None
+
+        try:
+            discount_str = raw_item.find('span', {'class': 'discount'}).text
+            discount_match = re.search('\$([0-9\.]+)\)', discount_str)
+            old_price = float(discount_match.group(1))
+        except (ValueError, AttributeError):
+            old_price = 0
+
+        item_data["oldprice"] = old_price
+        return item_data
+
+
+class Origin(AiohttpScrapingOrigin):
+
+    SCRAPE_SCHEMES = (
+        SchemeItem(
+            urlgenerator=ZapposUrlGenerator,
+            adapters=(
+                (ZapposItemAdapter, {}),
+            )
+        ),
+    )
+
+    @property
+    def default_destination(self):
+        return ConsoleDestination()

@@ -38,6 +38,7 @@ setup(
         'Topic :: Internet :: WWW/HTTP',
     ],
     install_requires=[
+        "beautifulsoup4",
         "colorlog",
         # "sunhead",
         "splinter",

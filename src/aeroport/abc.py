@@ -5,7 +5,7 @@ Payload abstractions taken from Scrapy projects.
 """
 
 from abc import ABCMeta, abstractmethod
-from collections import namedtuple, MutableMapping
+from collections import namedtuple, MutableMapping, AsyncIterable
 from typing import Tuple
 
 from sunhead.conf import settings
@@ -180,3 +180,33 @@ class AbstractAirline(object, metaclass=ABCMeta):
         kls = get_class_by_path(origin_class_path)
         origin = kls()
         return origin
+
+
+class AbstractUrlGenerator(AsyncIterable):
+    async def __aiter__(self):
+        return self
+
+    @abstractmethod
+    async def __anext__(self):
+        pass
+
+
+class AbstractItemAdapter(object, metaclass=ABCMeta):
+
+    def gen_payload_from_html(self, html):
+        raw_items = self.extract_raw_items_from_html(html)
+        return map(self.adapt_raw_item, raw_items)
+
+    @abstractmethod
+    def extract_raw_items_from_html(self, html):
+        return []
+
+    @abstractmethod
+    def adapt_raw_item(self, raw_item) -> AbstractPayload:
+        return None
+
+
+class AbstractDownloader(object, metaclass=ABCMeta):
+    @abstractmethod
+    async def get_html_from_url(self, url: str) -> str:
+        pass
