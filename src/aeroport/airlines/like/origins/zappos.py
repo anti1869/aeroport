@@ -98,6 +98,7 @@ class ZapposUrlGenerator(AiohttpDownloader, AbstractUrlGenerator):
             self._max_page = await self.get_max_page_number(self._processing_category)
             self._current_page = 1
         else:
+            # Remove comment for debug
             raise StopAsyncIteration
             self._current_page += 1
 
