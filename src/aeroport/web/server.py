@@ -7,7 +7,7 @@ import os
 from sunhead.cli.banners import print_banner
 from sunhead.workers.http.server import Server
 
-rest_urlconf = tuple()
+from aeroport.web.rest.urls import urlconf as rest_urlconf
 
 
 REST_URL_PREFIX = "/api/1.0"
