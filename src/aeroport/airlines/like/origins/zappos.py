@@ -13,7 +13,7 @@ from aeroport.scraping import (
     AiohttpScrapingOrigin, BrowserScrapingOrigin,
 )
 from aeroport.destinations.console import ConsoleDestination
-from aeroport.airlines.like.payload import ShopItem, ShopItemPostprocessMixin
+from aeroport.airlines.like.payload import ShopItem
 
 
 logger = logging.getLogger(__name__)
@@ -136,6 +136,12 @@ class ZapposItemAdapter(AbstractItemAdapter):
     PRICE_CLASS = "price"
 
     _shop_url = SHOP_URL
+    _shop_title = SHOP_TITLE
+    _shop_name = SHOP_NAME
+
+    def _add_shop_info(self, payload: ShopItem) -> None:
+        payload["shop_title"] = self._shop_title
+        payload["shop_name"] = self._shop_name
 
     def extract_raw_items_from_html(self, html):
         soup = BeautifulSoup(html, "html.parser")
@@ -153,13 +159,14 @@ class ZapposItemAdapter(AbstractItemAdapter):
         """
 
         item_data = ShopItem()
+        self._add_shop_info(item_data)
 
         try:
             item_data["url"] = self._shop_url + raw_item["href"]
             item_data["original_id"] = "{}{}".format(
                 raw_item["data-product-id"], raw_item["data-style-id"]
             )
-            item_data["thumbnail_uri"] = raw_item.find('img', {'class': 'productImg'})['src']
+            item_data["thumbnail_url"] = raw_item.find('img', {'class': 'productImg'})['src']
             item_data["brand_title"] = raw_item.find('span', {'class': 'brandName'}).text
             item_data["title"] = raw_item.find('span', {'class': 'productName'}).text
             price_str = raw_item.find('span', {'class': self.PRICE_CLASS}).text
@@ -179,7 +186,7 @@ class ZapposItemAdapter(AbstractItemAdapter):
         return item_data
 
 
-class Origin(ShopItemPostprocessMixin, AiohttpScrapingOrigin):
+class Origin(AiohttpScrapingOrigin):
 
     SCRAPE_SCHEMES = (
         SchemeItem(

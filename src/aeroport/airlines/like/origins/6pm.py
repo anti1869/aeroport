@@ -8,6 +8,7 @@ from aeroport.scraping import (
     SchemeItem,
 )
 from aeroport.airlines.like.origins.zappos import ZapposItemAdapter, ZapposUrlGenerator, Origin as ZapposOrigin
+from aeroport.airlines.like.payload import ShopItem
 
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,8 @@ class The6pmItemAdapter(ZapposItemAdapter):
     PRICE_CLASS = "price-6pm"
 
     _shop_url = SHOP_URL
+    _shop_title = SHOP_TITLE
+    _shop_name = SHOP_NAME
 
 
 class Origin(ZapposOrigin):

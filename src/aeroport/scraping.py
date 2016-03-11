@@ -116,11 +116,8 @@ class ScrapingOrigin(AbstractDownloader, AbstractOrigin):
                 for adapter in adapters:
                     for payload in adapter.gen_payload_from_html(html):
                         if payload is not None:
-                            self.postprocess_payload(payload, **url_info.kwargs)
+                            payload.postprocess(**url_info.kwargs)
                             await self.send_to_destination(payload)
-
-    def postprocess_payload(self, payload: AbstractPayload, **kwargs) -> None:
-        pass
 
 
 class BrowserScrapingOrigin(BrowserDownloader, ScrapingOrigin):

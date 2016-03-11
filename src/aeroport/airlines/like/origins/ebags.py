@@ -8,14 +8,14 @@ from typing import Sequence
 
 from bs4 import BeautifulSoup
 
-from aeroport.abc import UrlInfo
+from aeroport.abc import UrlInfo, AbstractPayload
 from aeroport.scraping import (
-    AbstractUrlGenerator, AiohttpDownloader, AbstractItemAdapter, SchemeItem,
-    AiohttpScrapingOrigin, BrowserScrapingOrigin, BrowserDownloader
+    AbstractUrlGenerator, AbstractItemAdapter, SchemeItem,
+    BrowserScrapingOrigin, BrowserDownloader
 )
 from aeroport.destinations.console import ConsoleDestination
 
-from aeroport.airlines.like.payload import ShopItem, ShopItemPostprocessMixin
+from aeroport.airlines.like.payload import ShopItem, Brand
 
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ class EbagsUrlGenerator(BrowserDownloader, AbstractUrlGenerator):
             self._current_page = 1
         else:
             # Remove comment for debug
-            # raise StopAsyncIteration
+            raise StopAsyncIteration
             self._current_page += 1
 
         url = self.get_category_page_url(self._processing_category, self._current_page)
@@ -117,9 +117,15 @@ class EbagsUrlGenerator(BrowserDownloader, AbstractUrlGenerator):
         return max_page
 
 
-class EbagsItemAdapter(AbstractItemAdapter):
+class BaseEbagsItemAdapter(AbstractItemAdapter):
 
     _shop_url = SHOP_URL
+    _shop_title = SHOP_TITLE
+    _shop_name = SHOP_NAME
+
+    def _add_shop_info(self, payload: ShopItem) -> None:
+        payload["shop_title"] = self._shop_title
+        payload["shop_name"] = self._shop_name
 
     def extract_raw_items_from_html(self, html) -> Sequence:
         soup = BeautifulSoup(html, "html.parser")
@@ -131,9 +137,13 @@ class EbagsItemAdapter(AbstractItemAdapter):
             raw_items_list = search_results_container.find_all('div', {'class': 'listPageItem'})
         return raw_items_list
 
+
+class EbagsItemAdapter(BaseEbagsItemAdapter):
+
     def adapt_raw_item(self, raw_item) -> ShopItem:
 
         item_data = ShopItem()
+        self._add_shop_info(item_data)
 
         try:
 
@@ -152,20 +162,7 @@ class EbagsItemAdapter(AbstractItemAdapter):
             if image_src[:2] == "//":
                 image_src = "http://{}".format(image_src[2:])
 
-            item_data["thumbnail_uri"] = image_src
-
-            # Brand image (now unused)
-            # TODO: Use collected brand image to download it, if necessary
-            brand_image_container = raw_item.find('div', {'class': 'listPageBrand'})
-            brand_image = brand_image_container.find('img')
-            brand_image_src = None
-            if brand_image:
-                brand_image_src = brand_image['src']
-                if brand_image_src.startswith("data:image/"):
-                    brand_image_src = brand_image['data-yo-src']
-
-                if brand_image_src[:2] == "//":
-                    brand_image_src = "http://{}".format(brand_image_src[2:])
+            item_data["thumbnail_url"] = image_src
 
             item_info_container = raw_item.find('div', {'class': 'listPageItemInfo'})
             brand_container = item_info_container.find('div', {'class': 'itemBrandName'})
@@ -197,7 +194,40 @@ class EbagsItemAdapter(AbstractItemAdapter):
         return item_data
 
 
-class Origin(ShopItemPostprocessMixin, BrowserScrapingOrigin):
+class EbagsBrandAdapter(BaseEbagsItemAdapter):
+
+    def adapt_raw_item(self, raw_item) -> Brand:
+
+        item_data = Brand()
+
+        try:
+            brand_image_container = raw_item.find('div', {'class': 'listPageBrand'})
+            brand_image = brand_image_container.find('img')
+            brand_image_src = None
+            if brand_image:
+                brand_image_src = brand_image['src']
+                if brand_image_src.startswith("data:image/"):
+                    brand_image_src = brand_image['data-yo-src']
+
+                if brand_image_src[:2] == "//":
+                    brand_image_src = "http://{}".format(brand_image_src[2:])
+
+            item_data["logo_url"] = brand_image_src
+
+            item_info_container = raw_item.find('div', {'class': 'listPageItemInfo'})
+            brand_container = item_info_container.find('div', {'class': 'itemBrandName'})
+            link = brand_container.find('a')
+            brand_name = link.text
+            item_data["title"] = brand_name
+
+        except Exception as e:
+            logger.warning(str(e))
+            return None
+
+        return item_data
+
+
+class Origin(BrowserScrapingOrigin):
 
     USE_PROXY = True
 
@@ -206,6 +236,7 @@ class Origin(ShopItemPostprocessMixin, BrowserScrapingOrigin):
             urlgenerator=EbagsUrlGenerator,
             adapters=(
                 (EbagsItemAdapter, {}),
+                (EbagsBrandAdapter, {}),
             )
         ),
     )

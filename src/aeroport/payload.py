@@ -10,5 +10,7 @@ class Field(AbstractField):
 
 
 class Payload(AbstractPayload):
-    pass
+
+    def postprocess(self, **kwargs):
+        pass
 
