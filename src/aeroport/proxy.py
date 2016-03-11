@@ -8,7 +8,7 @@ from random import randrange
 class ProxyCollection(object):
 
     PROXIES_LIST = [
-        ("159.182.107.151:80", "http"),
+        ("108.59.10.138:55555", "https"),
     ]
 
     def get_proxy(self):

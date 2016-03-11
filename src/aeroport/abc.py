@@ -6,7 +6,7 @@ Payload abstractions taken from Scrapy projects.
 
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple, MutableMapping, AsyncIterable
-from typing import Tuple
+from typing import Tuple, Sequence
 
 from sunhead.conf import settings
 from sunhead.utils import get_submodule_list, get_class_by_path
@@ -199,7 +199,7 @@ class AbstractItemAdapter(object, metaclass=ABCMeta):
         return map(self.adapt_raw_item, raw_items)
 
     @abstractmethod
-    def extract_raw_items_from_html(self, html):
+    def extract_raw_items_from_html(self, html) -> Sequence:
         return []
 
     @abstractmethod

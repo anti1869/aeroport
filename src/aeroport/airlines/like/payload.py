@@ -21,3 +21,13 @@ class ShopItem(Payload):
     primary_local_category_id = Field()
     category_name = Field()
 
+
+class ShopItemPostprocessMixin(object):
+
+    def postprocess_payload(self, payload: ShopItem, **kwargs) -> None:
+        payload["primary_local_category_id"] = kwargs.get("primary_local_category_id", None)
+        payload["category_name"] = kwargs.get("category_name", None)
+        payload["shop_title"] = getattr(self, "_shop_title")
+        payload["shop_name"] = getattr(self, "_shop_name")
+        payload["discount"] = round(100 - round(100 * payload["price"] / payload["oldprice"])) \
+            if payload["oldprice"] else 0

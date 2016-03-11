@@ -13,7 +13,7 @@ from aeroport.scraping import (
     AiohttpScrapingOrigin, BrowserScrapingOrigin,
 )
 from aeroport.destinations.console import ConsoleDestination
-from aeroport.airlines.like.payload import ShopItem
+from aeroport.airlines.like.payload import ShopItem, ShopItemPostprocessMixin
 
 
 logger = logging.getLogger(__name__)
@@ -175,13 +175,11 @@ class ZapposItemAdapter(AbstractItemAdapter):
             old_price = 0.0
 
         item_data["oldprice"] = old_price
-        item_data["discount"] = round(100 - round(100 * item_data["price"] / item_data["oldprice"])) \
-            if item_data["oldprice"] else 0
 
         return item_data
 
 
-class Origin(AiohttpScrapingOrigin):
+class Origin(ShopItemPostprocessMixin, AiohttpScrapingOrigin):
 
     SCRAPE_SCHEMES = (
         SchemeItem(
@@ -198,9 +196,3 @@ class Origin(AiohttpScrapingOrigin):
     @property
     def default_destination(self):
         return ConsoleDestination()
-
-    def postprocess_payload(self, payload: ShopItem, **kwargs) -> None:
-        payload["primary_local_category_id"] = kwargs.get("primary_local_category_id", None)
-        payload["category_name"] = kwargs.get("category_name", None)
-        payload["shop_title"] = self._shop_title
-        payload["shop_name"] = self._shop_name

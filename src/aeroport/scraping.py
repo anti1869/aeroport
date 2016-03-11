@@ -78,7 +78,9 @@ class BrowserDownloader(AbstractDownloader):
         with self._get_browser() as browser:
             logger.info("Fetching %s", url)
             browser.visit(url)
-            _ = browser.is_element_not_present_by_tag("body", wait_time=2)
+            # TODO: Investigate wait necessity
+            # _ = browser.is_element_not_present_by_tag("body", wait_time=2)
+            _ = browser.is_element_not_present_by_css("div.filterCon", wait_time=2)
 
             # For some reason, splinter page analyzing not working, so using BS
             html = browser.html
@@ -102,6 +104,9 @@ class ScrapingOrigin(AbstractDownloader, AbstractOrigin):
             )
         ),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     async def process(self):
         for scheme in self.SCRAPE_SCHEMES:
