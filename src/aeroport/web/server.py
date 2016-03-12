@@ -7,6 +7,7 @@ import os
 from sunhead.cli.banners import print_banner
 from sunhead.workers.http.server import Server
 
+from aeroport.db import sqlitedb
 from aeroport.web.rest.urls import urlconf as rest_urlconf
 
 
@@ -31,3 +32,10 @@ class AeroportHTTPServer(Server):
         filename = os.path.join(os.path.dirname(__file__), "templates", "logo.txt")
         print_banner(filename)
         super().print_banner()
+
+    def init_requirements(self, loop):
+        sqlitedb.connect()
+        sqlitedb.ensure_tables()
+
+    def cleanup(self, srv, handler, loop):
+        sqlitedb.disconnect()

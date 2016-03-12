@@ -19,7 +19,6 @@ class RunInLoopMixin(object):
         return result
 
 
-
 class Airlines(Command):
     """
     List airlines, registered with this aeroport installation.

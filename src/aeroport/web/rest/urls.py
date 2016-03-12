@@ -2,7 +2,7 @@
 Urls configuration for REST endpoint.
 """
 
-from aeroport.web.rest.views import jobs
+from aeroport.web.rest.views import jobs, airlines
 from aeroport.web.rest.views.generic import NotImplementedView
 
 urlconf = (
@@ -13,5 +13,11 @@ urlconf = (
     # Jobs
     ("GET", "/jobs/", NotImplementedView),
     ("POST", "/jobs/", jobs.JobsListView),
+
+    # Airlines & origins
+    ("GET", "/airlines/", airlines.AirlinesListView),
+    ("GET", "/airlines/{airline}/", airlines.AirlineView),
+    ("GET", "/airlines/{airline}/{origin}/", airlines.OriginView),
+    ("PUT", "/airlines/{airline}/{origin}/", NotImplementedView),
 
 )
