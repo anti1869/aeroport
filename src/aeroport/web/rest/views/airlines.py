@@ -96,8 +96,8 @@ class OriginView(BaseAirlineView):
                 "title": airline.title,
             },
             "origin": {
-                "name": origin.__class__.__name__,
+                "name": self.requested_origin,  # Fixme: Add property name in Origin object
             },
-            "schedule": {},
+            "schedule": airline.get_schedule(self.requested_origin),
         }
         return self.json_response(ctx)
