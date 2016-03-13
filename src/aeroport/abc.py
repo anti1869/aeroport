@@ -192,6 +192,9 @@ class AbstractAirline(object, metaclass=ABCMeta):
         )
         return result
 
+    def set_is_enabled(self, value: bool) -> None:
+        sqlitedb.set("airline_settings", "enabled", int(value), "airline", self.name)
+
     def get_schedule(self, origin: Optional[str] = None) -> Dict:
         schedule = sqlitedb.from_json(
             sqlitedb.get("airline_settings", "schedule", "airline", self.name, "{}")

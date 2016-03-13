@@ -77,6 +77,11 @@ class AirlineView(BaseAirlineView):
             schedule = json.loads(schedule_json)
             airline.set_schedule(schedule)
 
+        enabled = data.get("enabled", None)
+        if enabled is not None:
+            value = str(enabled).lower() in {"true", "1"}
+            airline.set_is_enabled(value)
+
         raise web_exceptions.HTTPNoContent
 
 
