@@ -5,7 +5,7 @@ Database interface. Very simple by now.
 import logging
 import sqlite3
 
-from sunhead.conf import settings
+import simplejson as json
 
 __all__ = ("sqlitedb",)
 
@@ -15,8 +15,11 @@ logger = logging.getLogger(__name__)
 class SqliteDB(object):
 
     def __init__(self):
-        self._db_path = settings.DB_PATH
+        self._db_path = None
         self._connection = None
+
+    def set_db_path(self, db_path: str) -> None:
+        self._db_path = db_path
 
     def connect(self) -> None:
         logger.info("Connecting sqlite db %s", self._db_path)
@@ -58,5 +61,22 @@ class SqliteDB(object):
         )
         self.connection.commit()
 
+    def to_json(self, data) -> str:
+        json_encoded = json.dumps(data)
+        return json_encoded
+
+    def from_json(self, serialized: str):
+        data = json.loads(serialized)
+        return data
+
+    def get(self, table, field_name, cond_field, cond_value, default):
+        cursor = self.connection.cursor()
+        q = 'SELECT {} FROM {} WHERE {} = ?'.format(field_name, table, cond_field)
+        cursor.execute(q, (cond_value,))
+        try:
+            result = cursor.fetchone()[0]
+        except TypeError:
+            result = default
+        return result
 
 sqlitedb = SqliteDB()

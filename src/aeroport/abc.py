@@ -6,7 +6,7 @@ Payload abstractions taken from Scrapy projects.
 
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple, MutableMapping, AsyncIterable
-from typing import Tuple, Sequence
+from typing import Tuple, Sequence, Optional, Dict
 
 from sunhead.conf import settings
 from sunhead.utils import get_submodule_list, get_class_by_path
@@ -137,6 +137,10 @@ class AbstractOrigin(object, metaclass=ABCMeta):
         await self.destination.process_payload(payload)
 
 
+from aeroport.db import sqlitedb
+AIRLINE_ENABLED_BY_DEFAULT = True
+
+
 class AbstractAirline(object, metaclass=ABCMeta):
     """
     Common interface for all airlines. Airline package must provide this object in its resigration module.
@@ -181,6 +185,27 @@ class AbstractAirline(object, metaclass=ABCMeta):
         kls = get_class_by_path(origin_class_path)
         origin = kls()
         return origin
+
+    def is_enabled(self) -> bool:
+        result = bool(
+            sqlitedb.get("airline_settings", "enabled", "airline", self.name, AIRLINE_ENABLED_BY_DEFAULT)
+        )
+        return result
+
+    def get_schedule(self, origin: Optional[str] = None) -> Dict:
+        schedule = sqlitedb.from_json(
+            sqlitedb.get("airline_settings", "schedule", "airline", self.name, "{}")
+        )
+
+        if origin is not None:
+            schedule = {
+                origin: schedule.get(origin, [])
+            }
+
+        return schedule
+
+
+
 
 
 class AbstractUrlGenerator(AsyncIterable):

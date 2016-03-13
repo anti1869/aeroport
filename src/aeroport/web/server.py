@@ -4,6 +4,7 @@ HTTP server, providing Admin interface and some APIs.
 
 import os
 
+from sunhead.conf import settings
 from sunhead.cli.banners import print_banner
 from sunhead.workers.http.server import Server
 
@@ -34,6 +35,7 @@ class AeroportHTTPServer(Server):
         super().print_banner()
 
     def init_requirements(self, loop):
+        sqlitedb.set_db_path(settings.DB_PATH)
         sqlitedb.connect()
         sqlitedb.ensure_tables()
 

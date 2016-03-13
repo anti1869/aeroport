@@ -9,7 +9,6 @@ from aiohttp import web_exceptions
 from sunhead.rest.views import JSONView
 
 from aeroport import management
-from aeroport.db import sqlitedb
 
 
 class BaseAirlineView(JSONView):
@@ -63,8 +62,8 @@ class AirlineView(BaseAirlineView):
                 "title": airline.title,
             },
             "origins": origins_data,
-            "enabled": True,
-            "schedule": {},
+            "enabled": airline.is_enabled(),
+            "schedule": airline.get_schedule(self.requested_airline),
             "targets": {},
         }
         return self.json_response(ctx)
