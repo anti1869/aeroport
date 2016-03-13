@@ -31,6 +31,7 @@ class AiohttpDownloader(AbstractDownloader):
 
     async def get_html_from_url(self, url: str) -> str:
         with aiohttp.Timeout(self.timeout):
+            logger.debug("Fetching %s", url)
             response = await aiohttp.get(url)
             assert response.status == 200
             html = await response.text()

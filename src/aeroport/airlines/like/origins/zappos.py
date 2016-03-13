@@ -12,7 +12,7 @@ from aeroport.scraping import (
     AbstractUrlGenerator, AiohttpDownloader, AbstractItemAdapter, SchemeItem,
     AiohttpScrapingOrigin, BrowserScrapingOrigin,
 )
-from aeroport.destinations.console import ConsoleDestination
+from aeroport.destinations.stream import StreamDestination
 from aeroport.airlines.like.payload import ShopItem
 
 
@@ -202,4 +202,4 @@ class Origin(AiohttpScrapingOrigin):
 
     @property
     def default_destination(self):
-        return ConsoleDestination()
+        return StreamDestination()
