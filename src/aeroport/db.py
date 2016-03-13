@@ -2,6 +2,7 @@
 Database interface. Very simple by now.
 """
 
+from collections import Sequence
 import logging
 import sqlite3
 
@@ -11,6 +12,8 @@ __all__ = ("sqlitedb",)
 
 logger = logging.getLogger(__name__)
 
+
+# TODO: Whole this stuff is likely to be trashed, as it is actually a complete shit.
 
 class SqliteDB(object):
 
@@ -40,7 +43,7 @@ class SqliteDB(object):
         cursor = self.connection.cursor()
         cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS jobs (
+            CREATE TABLE IF NOT EXISTS flights (
               airline TEXT,
               origin TEXT,
               started TEXT,
@@ -79,20 +82,26 @@ class SqliteDB(object):
             result = default
         return result
 
-    def set(self, table, field_name, value, cond_field, cond_value):
+    def set(self, table, field_names, values, cond_field, cond_value):
+
+        # Convert to sequences if needed
+        field_names, values = map(lambda x: (x,) if not isinstance(x, (list, tuple)) else x, (field_names, values))
+        set_portion = ",".join(("{} = ?".format(name) for name in field_names))
+
         cursor = self.connection.cursor()
-        q = 'SELECT {} FROM {} WHERE {} = ?'.format(field_name, table, cond_field)
+        self._ensure_record(cursor, table, cond_field, cond_value)
+        q = "UPDATE {} SET {} WHERE {} = ?".format(table, set_portion, cond_field)
+        cursor.execute(q, values + (cond_value, ))
+        self.connection.commit()
+
+    def _ensure_record(self, cursor, table, cond_field, cond_value):
+        q = 'SELECT ROWID FROM {} WHERE {} = ?'.format(table, cond_field)
         cursor.execute(q, (cond_value,))
         result = cursor.fetchone()
 
         if result is None:
             q = "INSERT INTO {} ({}) VALUES (?)".format(table, cond_field)
             cursor.execute(q, (cond_value, ))
-
-        q = "UPDATE {} SET {} = ? WHERE {} = ?".format(table, field_name, cond_field)
-        cursor.execute(q, (value, cond_value))
-
-        self.connection.commit()
 
 
 sqlitedb = SqliteDB()

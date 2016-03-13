@@ -250,3 +250,7 @@ class Origin(BrowserScrapingOrigin):
     @property
     def default_destination(self):
         return ConsoleDestination()
+
+    @property
+    def name(self) -> str:
+        return "ebags"

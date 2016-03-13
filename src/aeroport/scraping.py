@@ -14,6 +14,7 @@ from splinter import Browser
 from aeroport.abc import (
     AbstractOrigin, AbstractDownloader, AbstractUrlGenerator, AbstractItemAdapter, AbstractPayload,
 )
+from aeroport.dispatch import Flight
 from aeroport.proxy import ProxyCollection
 
 
@@ -110,15 +111,19 @@ class ScrapingOrigin(AbstractDownloader, AbstractOrigin):
         super().__init__(*args, **kwargs)
 
     async def process(self):
+        flight = Flight(self.airline, self)
+        flight.start()
+        num = 0
         for scheme in self.SCRAPE_SCHEMES:
             adapters = tuple((cls(**init_kwargs) for cls, init_kwargs in scheme.adapters))
             async for url_info in scheme.urlgenerator():
                 html = await self.get_html_from_url(url_info.url)
                 for adapter in adapters:
-                    for payload in adapter.gen_payload_from_html(html):
+                    for num, payload in enumerate(adapter.gen_payload_from_html(html), start=1):
                         if payload is not None:
                             payload.postprocess(**url_info.kwargs)
                             await self.send_to_destination(payload)
+        flight.finish(num)
 
 
 class BrowserScrapingOrigin(BrowserDownloader, ScrapingOrigin):

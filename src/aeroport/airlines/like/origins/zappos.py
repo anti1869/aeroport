@@ -203,3 +203,7 @@ class Origin(AiohttpScrapingOrigin):
     @property
     def default_destination(self):
         return StreamDestination()
+
+    @property
+    def name(self) -> str:
+        return "zappos"

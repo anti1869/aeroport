@@ -11,7 +11,7 @@ from sunhead.rest.views import JSONView
 from aeroport import management
 
 
-class JobsListView(JSONView):
+class FlightsListView(JSONView):
 
     async def post(self):
         data = await self.request.post()

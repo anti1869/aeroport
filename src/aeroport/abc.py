@@ -109,12 +109,22 @@ class AbstractDestination(object, metaclass=ABCMeta):
 
 class AbstractOrigin(object, metaclass=ABCMeta):
 
-    def __init__(self):
+    def __init__(self, airline):
         self._destination = None
+        self._airline = airline
 
     def set_destination(self, class_path: str, **init_kwargs) -> None:
         kls = get_class_by_path(class_path)
         self._destination = kls(**init_kwargs)
+
+    @property
+    def airline(self):
+        return self._airline
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        pass
 
     @abstractmethod
     async def process(self) -> None:
@@ -183,7 +193,7 @@ class AbstractAirline(object, metaclass=ABCMeta):
     def get_origin(self, origin_name) -> AbstractOrigin:
         origin_class_path = "{}.{}.Origin".format(self.origins_mount_point, origin_name)
         kls = get_class_by_path(origin_class_path)
-        origin = kls()
+        origin = kls(airline=self)
         return origin
 
     def is_enabled(self) -> bool:

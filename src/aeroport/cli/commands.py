@@ -69,7 +69,14 @@ class Process(RunInLoopMixin, Command):
         origin = airline.get_origin(options["origin"])
 
         # TODO: Set destination here
+        # TODO: Better DB handling
 
+        from aeroport.db import sqlitedb
+        from sunhead.conf import settings
+
+        sqlitedb.set_db_path(settings.DB_PATH)
+        sqlitedb.connect()
+        sqlitedb.ensure_tables()
         self.run_in_loop(origin.process())
 
     def get_parser(self):

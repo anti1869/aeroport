@@ -98,3 +98,7 @@ class Origin(ZapposOrigin):
 
     _shop_title = SHOP_TITLE
     _shop_name = SHOP_NAME
+
+    @property
+    def name(self) -> str:
+        return "6pm"
