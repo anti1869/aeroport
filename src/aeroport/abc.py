@@ -199,13 +199,14 @@ class AbstractAirline(object, metaclass=ABCMeta):
 
         if origin is not None:
             schedule = {
-                origin: schedule.get(origin, [])
+                origin: schedule.get(origin, "")
             }
 
         return schedule
 
-
-
+    def set_schedule(self, schedule_data: Dict) -> None:
+        json_schedule = sqlitedb.to_json(schedule_data)
+        sqlitedb.set("airline_settings", "schedule", json_schedule, "airline", self.name)
 
 
 class AbstractUrlGenerator(AsyncIterable):

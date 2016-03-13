@@ -79,4 +79,20 @@ class SqliteDB(object):
             result = default
         return result
 
+    def set(self, table, field_name, value, cond_field, cond_value):
+        cursor = self.connection.cursor()
+        q = 'SELECT {} FROM {} WHERE {} = ?'.format(field_name, table, cond_field)
+        cursor.execute(q, (cond_value,))
+        result = cursor.fetchone()
+
+        if result is None:
+            q = "INSERT INTO {} ({}) VALUES (?)".format(table, cond_field)
+            cursor.execute(q, (cond_value, ))
+
+        q = "UPDATE {} SET {} = ? WHERE {} = ?".format(table, field_name, cond_field)
+        cursor.execute(q, (value, cond_value))
+
+        self.connection.commit()
+
+
 sqlitedb = SqliteDB()

@@ -38,6 +38,10 @@ class AeroportHTTPServer(Server):
         sqlitedb.set_db_path(settings.DB_PATH)
         sqlitedb.connect()
         sqlitedb.ensure_tables()
+        self.set_timetable(loop)
 
     def cleanup(self, srv, handler, loop):
         sqlitedb.disconnect()
+
+    def set_timetable(self, loop):
+        pass

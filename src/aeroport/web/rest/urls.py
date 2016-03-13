@@ -17,6 +17,7 @@ urlconf = (
     # Airlines & origins
     ("GET", "/airlines/", airlines.AirlinesListView),
     ("GET", "/airlines/{airline}/", airlines.AirlineView),
+    ("PUT", "/airlines/{airline}/", airlines.AirlineView),
     ("GET", "/airlines/{airline}/{origin}/", airlines.OriginView),
     ("PUT", "/airlines/{airline}/{origin}/", NotImplementedView),
 

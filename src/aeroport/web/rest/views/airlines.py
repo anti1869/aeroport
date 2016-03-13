@@ -5,6 +5,7 @@ Airline settings & info views.
 import asyncio
 
 from aiohttp import web_exceptions
+import simplejson as json
 
 from sunhead.rest.views import JSONView
 
@@ -63,10 +64,20 @@ class AirlineView(BaseAirlineView):
             },
             "origins": origins_data,
             "enabled": airline.is_enabled(),
-            "schedule": airline.get_schedule(self.requested_airline),
+            "schedule": airline.get_schedule(),
             "targets": {},
         }
         return self.json_response(ctx)
+
+    async def put(self):
+        airline = management.get_airline(self.requested_airline)
+        data = await self.request.post()
+        schedule_json = data.get("schedule", None)
+        if schedule_json is not None:
+            schedule = json.loads(schedule_json)
+            airline.set_schedule(schedule)
+
+        raise web_exceptions.HTTPNoContent
 
 
 class OriginView(BaseAirlineView):
