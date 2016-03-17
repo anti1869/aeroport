@@ -37,37 +37,37 @@ class EbagsUrlGenerator(BrowserDownloader, AbstractUrlGenerator):
         {
             "category_name": "handbags",
             "category_url": "category/handbags/dept/handbags",
-            "primary_local_category_id": 1,
+            "matching_category_id": 1,
         },
         {
             "category_name": "backpacks",
             "category_url": "search/dept/backpacks",
-            "primary_local_category_id": 2,
+            "matching_category_id": 2,
         },
         {
             "category_name": "luggage",
             "category_url": "category/luggage/dept/luggage",
-            "primary_local_category_id": 3,
+            "matching_category_id": 3,
         },
         {
             "category_name": "accessories",
             "category_url": "category/wallets/dept/accessories",
-            "primary_local_category_id": 4,
+            "matching_category_id": 4,
         },
         {
             "category_name": "business",
             "category_url": "category/messenger-and-shoulder-bags/messenger-bags/dept/business",
-            "primary_local_category_id": 6,
+            "matching_category_id": 6,
         },
         {
             "category_name": "business",
             "category_url": "category/business-cases/laptop-bags/dept/business",
-            "primary_local_category_id": 7,
+            "matching_category_id": 7,
         },
         {
             "category_name": "sports",
             "category_url": "search/dept/sports",
-            "primary_local_category_id": 8,
+            "matching_category_id": 8,
         },
     ]
 

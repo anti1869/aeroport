@@ -18,11 +18,11 @@ class ShopItem(Payload):
     shop_title = Field()
     shop_name = Field()
     origin = Field()
-    primary_local_category_id = Field()
+    matching_category_id = Field()
     category_name = Field()
 
     def postprocess(self, **kwargs):
-        self["primary_local_category_id"] = kwargs.get("primary_local_category_id", None)
+        self["matching_category_id"] = kwargs.get("matching_category_id", None)
         self["category_name"] = kwargs.get("category_name", None)
         self["discount"] = round(100 - round(100 * self["price"] / self["oldprice"])) if self["oldprice"] else 0
 
