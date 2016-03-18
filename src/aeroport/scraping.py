@@ -49,8 +49,8 @@ class BrowserDownloader(AbstractDownloader):
     MAX_BROWSERS = 5
     USE_PROXY = False
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._browser = None
         self.sem = asyncio.Semaphore(self.MAX_BROWSERS)
         self.proxy_collection = ProxyCollection()

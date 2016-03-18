@@ -19,4 +19,5 @@ loop.run_until_complete(stream.connect())
 class StreamDestination(AbstractDestination):
 
     async def process_payload(self, payload: AbstractPayload):
-        await stream.publish(payload.as_dict, ("aeroport.payload_sent", ))
+        pname = payload.__class__.__name__.lower()
+        await stream.publish(payload.as_dict, ("aeroport.payload_sent.{}".format(pname), ))
