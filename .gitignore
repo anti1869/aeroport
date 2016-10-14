@@ -1,6 +1,7 @@
 .idea
 /tmp
 startenv
+startenv-pr
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
