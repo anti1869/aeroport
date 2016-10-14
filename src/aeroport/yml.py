@@ -2,8 +2,10 @@
 Things to extract data from Yandex Market Format (yml). Not to be confused with YAML.
 """
 
+from copy import copy
 from enum import Enum
 from functools import partial
+import hashlib
 import logging
 import os
 import time
@@ -31,19 +33,51 @@ class YmlFeedItemTypes(Enum):
     offer = 1
 
 
+class XMLElementsCollection(object):
+
+    def __init__(self, first_element=None):
+        self._data = []
+        if first_element is not None:
+            self._data.append(copy(first_element))
+
+    def accept_element(self, element):
+        # TODO: Check memory consumption in this case
+        self._data.append(copy(element))
+
+    def get_raw_item(self) -> Sequence[ET.Element]:
+        return self._data
+
+
+def get_attrib(elem, names, cast_type=None, default=None):
+    """
+    Get attribute of xml element tag which name can be on the provided list.
+    First found returned.
+
+    :param elem: XML element to search attributes in.
+    :param names: List of possible attribute names.
+    :param default: Return value if not one single name found in elem.attribs.
+    :return: Value of the attribute as a string.
+    :rtype: str
+    """
+    for name in names:
+        if name in elem.attrib:
+            result = elem.attrib[name]
+            if cast_type:
+                try:
+                    result = cast_type(result)
+                except ValueError as e:
+                    # There is problem casting type. Try to workaround
+                    if cast_type == int:
+                        int(hashlib.md5(result).hexdigest()[:16], 16)
+                    else:
+                        raise ValueError(e)
+            return result
+    return default
+
+
 class YMLItemAdapter(AbstractItemAdapter):
     def extract_raw_items_from_html(self, html) -> Sequence:
         raise NotImplementedError()
-
-
-class CategoryAdapter(YMLItemAdapter):
-    def adapt_raw_item(self, raw_item) -> AbstractPayload:
-        return Payload()
-
-
-class OfferAdapter(YMLItemAdapter):
-    def adapt_raw_item(self, raw_item) -> AbstractPayload:
-        return Payload()
 
 
 class FeedInfo(Payload):
@@ -60,24 +94,9 @@ class FeedParsingResult(Payload):
     categories_id_list = Field()
 
 
-class XMLElementCollector(object):
-
-    def __init__(self, element):
-        self._data = []
-
-    def accept_element(self, element):
-        self._data.append(element)
-
-    def get_raw_item(self):
-        return self._data
-
-
 class YmlOrigin(AbstractOrigin):
 
-    ADAPTER_MAPPING = {
-        YmlFeedItemTypes.category: CategoryAdapter,
-        YmlFeedItemTypes.offer: OfferAdapter,
-    }
+    ADAPTER_MAPPING = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -130,6 +149,11 @@ class YmlOrigin(AbstractOrigin):
             if not adapter:
                 continue
             id_lists.get(item["type"], set()).add(item["original_id"])
+            item["payload"].postprocess(
+                **{
+                    "origin_name": self.name,
+                }
+            )
             await self.send_to_destination(item["payload"])
 
         # Finalize
@@ -167,8 +191,8 @@ class YmlOrigin(AbstractOrigin):
         categories_count, offers_count = 0, 0
         with open(feed_file, "r") as f:
             for line in f:
-                categories_count += line.count('<category ')
-                offers_count += line.count('<offer ')
+                categories_count += line.count("<category ")
+                offers_count += line.count("<offer ")
 
         info["categories_count"] = categories_count
         info["offers_count"] = offers_count
@@ -190,22 +214,24 @@ class YmlOrigin(AbstractOrigin):
         :param feed_file: Path to the feed file.
         :param categories_parser: Method that will parse all categories in given context.
         :param offers_parser: Method that will parse all items in given context.
-        :return: Doesn't return anything.
+        :return: Doesn"t return anything.
         """
         # Check what caller was intended to parse and put memory cleaning iterators to unneeded portions of YML XML
         if categories_parser is None:
-            categories_parser = partial(self._dismiss_generator, 'categories')
+            categories_parser = partial(self._dismiss_generator, "categories")
         if offers_parser is None:
-            offers_parser = partial(self._dismiss_generator, 'offers')
+            offers_parser = partial(self._dismiss_generator, "offers")
 
         # Start XML parsing process right from the beginning, using configured parsers
-        context = iter(iterparse(feed_file, events=('start', 'end')))
+        context = iter(iterparse(feed_file, events=("start", "end")))
         for event, elem in context:
-            if event == 'start':
+            if event == "start":
                 if elem.tag == "categories":
+                    logging.info("Parser enters categories")
                     for i in categories_parser(context):
                         yield i
                 if elem.tag == "offers":
+                    logging.info("Parser enters offers")
                     for i in offers_parser(context):
                         yield i
             else:
@@ -214,7 +240,7 @@ class YmlOrigin(AbstractOrigin):
 
     def _dismiss_generator(self, stop_on, context):
         for event, elem in context:
-            if event == 'end':
+            if event == "end":
                 elem.clear()
                 if elem.tag == stop_on:
                     yield None
@@ -223,44 +249,46 @@ class YmlOrigin(AbstractOrigin):
     # TODO: Squash next two
     def _offers_generator(self, context):
         for event, elem in context:
-            if event == 'start' and elem.tag == "offer":
-                raw_data_collector = XMLElementCollector(elem)
+            if event == "start" and elem.tag == "offer":
+                raw_data_collector = XMLElementsCollection(elem)
                 for offer_event, offer_elem in context:
-                    if offer_event == 'end':
-                        if offer_elem.tag == 'offer':
+                    if offer_event == "end":
+                        if offer_elem.tag == "offer":
                             offer_elem.clear()
                             offer_payload = self._adapters[YmlFeedItemTypes.offer].adapt_raw_item(
                                 raw_data_collector.get_raw_item()
                             )
                             yield {
                                 "type": YmlFeedItemTypes.offer,
-                                "original_id": None,
+                                "original_id": offer_payload.get("original_id", None),
                                 "payload": offer_payload,
                             }
+                            break
                         else:
                             raw_data_collector.accept_element(offer_elem)
-            elif event == 'end' and elem.tag == 'offers':
+            elif event == "end" and elem.tag == "offers":
                 elem.clear()
                 raise StopIteration()
 
     def _categories_generator(self, context):
         for event, elem in context:
-            if event == 'start' and elem.tag == "category":
-                raw_data_collector = XMLElementCollector(elem)
+            if event == "start" and elem.tag == "category":
+                raw_data_collector = XMLElementsCollection(elem)
                 for category_event, category_elem in context:
-                    if category_event == 'end':
-                        if category_elem.tag == 'offer':
+                    if category_event == "end":
+                        if category_elem.tag == "category":
                             category_elem.clear()
                             payload = self._adapters[YmlFeedItemTypes.category].adapt_raw_item(
                                 raw_data_collector.get_raw_item()
                             )
                             yield {
                                 "type": YmlFeedItemTypes.category,
-                                "original_id": None,
+                                "original_id": payload.get("original_id", None),
                                 "payload": payload,
                             }
+                            break
                         else:
                             raw_data_collector.accept_element(category_elem)
-            elif event == 'end' and elem.tag == 'categories':
+            elif event == "end" and elem.tag == "categories":
                 elem.clear()
                 raise StopIteration()
