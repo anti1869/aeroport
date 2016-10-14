@@ -4,6 +4,8 @@ Things to extract data from Yandex Market Format (yml). Not to be confused with 
 
 from enum import Enum
 import logging
+import os
+import time
 from typing import Optional, Dict, Iterable, Sequence
 
 from sunhead.conf import settings
@@ -46,6 +48,7 @@ class FeedInfo(Payload):
     offers_count = Field()
     filesize = Field()
     file_last_updated = Field()
+    file_last_updated_formatted = Field()
 
 
 class FeedParsingResult(Payload):
@@ -84,7 +87,7 @@ class YmlOrigin(AbstractOrigin):
         feed_file = await self.get_feed_file(self.export_url)
         print(feed_file)
         feed_info = self.analyze_feed(feed_file)
-        print(feed_info)
+        print(feed_info.as_dict)
 
     async def process2(self):
         flight = Flight(self.airline, self)
@@ -135,7 +138,24 @@ class YmlOrigin(AbstractOrigin):
         """
         Quickly get stats about feed.
         """
+        logger.info("Analyzing feed")
         info = FeedInfo()
+        if not os.path.isfile(feed_file):
+            return None
+        info["file_last_updated"] = os.path.getmtime(feed_file)
+        info["file_last_updated_formatted"] = time.strftime(
+            "%d.%m.%Y %H:%M", time.localtime(info["file_last_updated"])
+        )
+        info["filesize"] = float(os.path.getsize(feed_file)) / 1024.0 / 1024.0
+        categories_count, offers_count = 0, 0
+        with open(feed_file, "r") as f:
+            for line in f:
+                categories_count += line.count('<category ')
+                offers_count += line.count('<offer ')
+
+        info["categories_count"] = categories_count
+        info["offers_count"] = offers_count
+        info["total_count"] = categories_count + offers_count
         return info
 
     def parse_feed(self, feed_file: str, feed_info: Optional[FeedInfo]) -> Iterable[Dict]:
