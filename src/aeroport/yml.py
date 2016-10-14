@@ -3,13 +3,21 @@ Things to extract data from Yandex Market Format (yml). Not to be confused with 
 """
 
 from enum import Enum
-from typing import Optional, Dict, Iterable
+import logging
+from typing import Optional, Dict, Iterable, Sequence
+
+from sunhead.conf import settings
+from sunhead.utils import get_class_by_path
 
 from aeroport.abc import (
     AbstractOrigin, AbstractDownloader, AbstractUrlGenerator, AbstractItemAdapter, AbstractPayload,
 )
 from aeroport.payload import Payload, Field
 from aeroport.dispatch import Flight
+from aeroport.fileurlcache import FileUrlCache
+
+
+logger = logging.getLogger(__name__)
 
 
 class YmlFeedItemTypes(Enum):
@@ -17,12 +25,19 @@ class YmlFeedItemTypes(Enum):
     offer = 1
 
 
-class CategoryAdapter(AbstractItemAdapter):
-    pass
+class YMLItemAdapter(AbstractItemAdapter):
+    def extract_raw_items_from_html(self, html) -> Sequence:
+        raise NotImplementedError()
 
 
-class OfferAdapter(AbstractItemAdapter):
-    pass
+class CategoryAdapter(YMLItemAdapter):
+    def adapt_raw_item(self, raw_item) -> AbstractPayload:
+        return None
+
+
+class OfferAdapter(YMLItemAdapter):
+    def adapt_raw_item(self, raw_item) -> AbstractPayload:
+        return None
 
 
 class FeedInfo(Payload):
@@ -50,17 +65,37 @@ class YmlOrigin(AbstractOrigin):
         self._adapters = {
             item_type: kls() for item_type, kls in self.ADAPTER_MAPPING.items()
         }
+        self._cache = self._init_file_url_cache()
+
+    def _init_file_url_cache(self) -> FileUrlCache:
+        conf = dict(settings.FILE_URL_CACHE["storage"])
+        bucket = "{}_{}".format(conf.pop("bucket"), self.airline.name)
+        storage_class = get_class_by_path(conf.pop("class"))
+        expires = settings.FILE_URL_CACHE.get("expires", None)
+        storage = storage_class(**conf)
+        cache = FileUrlCache(storage, bucket, expires)
+        return cache
 
     @property
     def export_url(self):
         raise NotImplementedError()
 
     async def process(self):
+        feed_file = await self.get_feed_file(self.export_url)
+        print(feed_file)
+        feed_info = self.analyze_feed(feed_file)
+        print(feed_info)
+
+    async def process2(self):
         flight = Flight(self.airline, self)
         flight.start()
 
         # Preparations
-        feed_file = self.get_feed_file(self.export_url)
+        feed_file = await self.get_feed_file(self.export_url)
+        if feed_file is None:
+            logger.error("Can't get valid feed file, aborting")
+            return
+
         feed_info = self.analyze_feed(feed_file)
         await self.send_to_destination(feed_info)
 
@@ -86,13 +121,15 @@ class YmlOrigin(AbstractOrigin):
 
         flight.finish(idx)
 
-    def get_feed_file(self, export_url: str) -> str:
+    async def get_feed_file(self, export_url: str, force_download=False) -> str:
         """
         Download feed or use local cache.
 
         :return: Full path on filesystem to prepared feed file.
         """
-        return ""
+        as_filename = "{}.yml".format(self.name)
+        path = await self._cache.get(export_url, as_filename, force_download)
+        return path
 
     def analyze_feed(self, feed_file: str) -> FeedInfo:
         """
