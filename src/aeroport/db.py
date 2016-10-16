@@ -3,8 +3,9 @@ PostgreSQL database connector and some generic stuff.
 """
 
 from itertools import chain
+from enum import Enum
 import logging
-from typing import Optional, Iterable, List
+from typing import Optional, Iterable, List, Tuple
 
 import peewee
 from peewee import Model, BaseModel as PeeweeBaseModel
@@ -56,9 +57,11 @@ def get_all_models() -> List[Model]:
     # TODO: Implement that properly
     from aeroport.management import models as management_models
     from aeroport.destinations import models as destination_models
+    from aeroport import dispatch
     all_models = list(chain(
         get_models_from_module(management_models, BaseModel),
         get_models_from_module(destination_models, BaseModel),
+        get_models_from_module(dispatch, BaseModel),
     ))
     return all_models
 
@@ -86,3 +89,15 @@ def drop_tables(models: Optional[Iterable[str]] = None) -> None:
         #     db.drop_tables(through_models, safe=True)
     except peewee.ProgrammingError:
         logger.warning("Error while dropping tables", exc_info=True)
+
+
+def choices_from_enum(source: Enum) -> Tuple[int, str]:
+    """
+    Makes tuple to use in Django's Fields ``choices`` attribute.
+    Enum members names will be titles for the choices.
+
+    :param source: Enum to process.
+    :return: Tuple to put into ``choices``
+    """
+    result = tuple((s.value, s.name.title()) for s in source)
+    return result

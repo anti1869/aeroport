@@ -126,15 +126,16 @@ class YmlOrigin(AbstractOrigin):
         logger.info("%s %% Processed %s of %s yml items", pc, processed, total)
 
     async def process(self):
-        flight = Flight(self.airline, self)
-        flight.start()
+        flight = Flight(self)
+        await flight.start()
 
         total_processed = 0
         async for url_info in await self.get_urlgenerator():
             procesed = await self.process_export_url(url_info.url, url_info.kwargs)
             total_processed += procesed
+            await flight.set_num_processed(total_processed)
 
-        flight.finish(total_processed)
+        await flight.finish(total_processed)
 
     async def process_export_url(self, export_url: str, url_kwargs: Dict = None) -> int:
         """
