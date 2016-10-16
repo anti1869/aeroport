@@ -91,27 +91,36 @@ class Process(RunInLoopMixin, Command):
 
     def handler(self, options) -> None:
         """Run collecting data"""
-        airline = management.get_airline(options["airline"])
-        origin = airline.get_origin(options["origin"])
 
         # TODO: Set destination here
         # TODO: Better DB handling
 
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._handler(options))
+
+    async def _handler(self, options):
+        airline = management.get_airline(options["airline"])
+        origin = airline.get_origin(options["origin"])
+
         from aeroport.sqldb import sqlitedb
         from sunhead.conf import settings
-        from aeroport.db import db
+        from aeroport.destinations.models import Destination
 
-        loop = asyncio.get_event_loop()
-
-        loop.run_until_complete(db.connect_async())
+        requested_destination = options.get("destination")
+        if requested_destination:
+            try:
+                dest = await Destination.db_manager.get(Destination, enabled=True, name=requested_destination)
+            except Destination.DoesNotExist:
+                print("There is not destination named '%s'" % requested_destination)
+                quit(-1)
+            else:
+                await origin.set_destination(dest.class_name, **dest.settings)
 
         sqlitedb.set_db_path(settings.DB_PATH)
         sqlitedb.connect()
         sqlitedb.ensure_tables()
 
-
-
-        self.run_in_loop(origin.process())
+        await origin.process()
 
     def get_parser(self):
         parser_command = argparse.ArgumentParser(description=self.handler.__doc__)

@@ -100,6 +100,14 @@ class AbstractPayload(DictItem, metaclass=InheritableFieldsMeta):
 class AbstractDestination(object, metaclass=ABCMeta):
 
     def __init__(self, **init_kwargs):
+        self._init_kwargs = init_kwargs
+
+    @abstractmethod
+    async def prepare(self):
+        pass
+
+    @abstractmethod
+    async def release(self):
         pass
 
     @abstractmethod
@@ -114,9 +122,10 @@ class AbstractOrigin(object, metaclass=ABCMeta):
         self._airline = airline
         self._settings = None
 
-    def set_destination(self, class_path: str, **init_kwargs) -> None:
+    async def set_destination(self, class_path: str, **init_kwargs) -> None:
         kls = get_class_by_path(class_path)
         self._destination = kls(**init_kwargs)
+        await self._destination.prepare()
 
     @property
     def airline(self):
