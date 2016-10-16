@@ -118,6 +118,9 @@ class YmlOrigin(AbstractOrigin):
     def export_url(self):
         raise NotImplementedError()
 
+    async def get_urlgenerator(self) -> AbstractUrlGenerator:
+        raise NotImplementedError()
+
     async def progress_callback(self, processed: int, total: int):
         pc = int(processed * 100 / total)
         logger.info("%s %% Processed %s of %s yml items", pc, processed, total)
@@ -126,8 +129,22 @@ class YmlOrigin(AbstractOrigin):
         flight = Flight(self.airline, self)
         flight.start()
 
+        total_processed = 0
+        async for url_info in await self.get_urlgenerator():
+            procesed = await self.process_export_url(url_info.url, url_info.kwargs)
+            total_processed += procesed
+
+        flight.finish(total_processed)
+
+    async def process_export_url(self, export_url: str, url_kwargs: Dict = None) -> int:
+        """
+        Process one given feed url.
+
+        :return: Processed number
+        """
+
         # Preparations
-        feed_file = await self.get_feed_file(self.export_url)
+        feed_file = await self.get_feed_file(export_url)
         if feed_file is None:
             logger.error("Can't get valid feed file, aborting")
             return
@@ -152,6 +169,7 @@ class YmlOrigin(AbstractOrigin):
             item["payload"].postprocess(
                 **{
                     "origin_name": self.name,
+                    "url_kwargs": url_kwargs,
                 }
             )
             await self.send_to_destination(item["payload"])
@@ -161,9 +179,9 @@ class YmlOrigin(AbstractOrigin):
             categories_id_list=id_lists[YmlFeedItemTypes.category],
             offers_id_list=id_lists[YmlFeedItemTypes.offer]
         )
-        await self.send_to_destination(result)
+        # await self.send_to_destination(result)
 
-        flight.finish(idx)
+        return idx
 
     async def get_feed_file(self, export_url: str, force_download=False) -> str:
         """
@@ -202,8 +220,8 @@ class YmlOrigin(AbstractOrigin):
     def parse_feed(self, feed_file: str) -> Iterable[Dict]:
         yield from self._parse(
             feed_file,
-            categories_parser=self._categories_generator,
-            offers_parser=self._offers_generator
+            categories_parser=partial(self._generator, "category", "categories"),
+            offers_parser=partial(self._generator, "offer", "offers")
         )
 
     def _parse(self, feed_file: str, categories_parser=None, offers_parser=None):
@@ -246,49 +264,25 @@ class YmlOrigin(AbstractOrigin):
                     yield None
                     raise StopIteration()
 
-    # TODO: Squash next two
-    def _offers_generator(self, context):
+    def _generator(self, key, tag_many, context):
         for event, elem in context:
-            if event == "start" and elem.tag == "offer":
+            if event == "start" and elem.tag == key:
                 raw_data_collector = XMLElementsCollection(elem)
-                for offer_event, offer_elem in context:
-                    if offer_event == "end":
-                        if offer_elem.tag == "offer":
-                            offer_elem.clear()
-                            offer_payload = self._adapters[YmlFeedItemTypes.offer].adapt_raw_item(
+                for key_event, key_elem in context:
+                    if key_event == "end":
+                        if key_elem.tag == key:
+                            key_elem.clear()
+                            payload = self._adapters[getattr(YmlFeedItemTypes, key)].adapt_raw_item(
                                 raw_data_collector.get_raw_item()
                             )
                             yield {
-                                "type": YmlFeedItemTypes.offer,
-                                "original_id": offer_payload.get("original_id", None),
-                                "payload": offer_payload,
-                            }
-                            break
-                        else:
-                            raw_data_collector.accept_element(offer_elem)
-            elif event == "end" and elem.tag == "offers":
-                elem.clear()
-                raise StopIteration()
-
-    def _categories_generator(self, context):
-        for event, elem in context:
-            if event == "start" and elem.tag == "category":
-                raw_data_collector = XMLElementsCollection(elem)
-                for category_event, category_elem in context:
-                    if category_event == "end":
-                        if category_elem.tag == "category":
-                            category_elem.clear()
-                            payload = self._adapters[YmlFeedItemTypes.category].adapt_raw_item(
-                                raw_data_collector.get_raw_item()
-                            )
-                            yield {
-                                "type": YmlFeedItemTypes.category,
+                                "type": getattr(YmlFeedItemTypes, key),
                                 "original_id": payload.get("original_id", None),
                                 "payload": payload,
                             }
                             break
                         else:
-                            raw_data_collector.accept_element(category_elem)
-            elif event == "end" and elem.tag == "categories":
+                            raw_data_collector.accept_element(key_elem)
+            elif event == "end" and elem.tag == tag_many:
                 elem.clear()
                 raise StopIteration()

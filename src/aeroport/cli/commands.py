@@ -19,6 +19,32 @@ class RunInLoopMixin(object):
         return result
 
 
+class InitDB(Command):
+    """
+    Create tables and stuff.
+    """
+
+    def handler(self, options) -> None:
+        """Drop and create tables"""
+        from aeroport.db import create_tables, drop_tables, get_all_models
+        all_models = get_all_models()
+        names = set(options["tables"].lower().split(","))
+        selected_models = all_models if options["tables"].lower() == "all" \
+            else tuple(filter(lambda x: x.__name__.lower() in names, all_models))
+
+        drop_tables(models=selected_models)
+        create_tables(models=selected_models)
+
+    def get_parser(self):
+        parser_command = argparse.ArgumentParser(description=self.handler.__doc__)
+        parser_command.add_argument(
+            "tables",
+            type=str,
+            help="Tables to recreate (comma separated, ALL=all)",
+        )
+        return parser_command
+
+
 class Airlines(Command):
     """
     List airlines, registered with this aeroport installation.
@@ -71,12 +97,20 @@ class Process(RunInLoopMixin, Command):
         # TODO: Set destination here
         # TODO: Better DB handling
 
-        from aeroport.db import sqlitedb
+        from aeroport.sqldb import sqlitedb
         from sunhead.conf import settings
+        from aeroport.db import db
+
+        loop = asyncio.get_event_loop()
+
+        loop.run_until_complete(db.connect_async())
 
         sqlitedb.set_db_path(settings.DB_PATH)
         sqlitedb.connect()
         sqlitedb.ensure_tables()
+
+
+
         self.run_in_loop(origin.process())
 
     def get_parser(self):

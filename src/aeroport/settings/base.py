@@ -25,3 +25,19 @@ FILE_URL_CACHE = {
     },
     "expires": os.environ.get("AERORPORT_FILE_URL_CACHE_EXPIRES", 3600 * 12),
 }
+
+
+DATABASE = {
+    "default": {
+        "engine": "peewee_asyncext.PooledPostgresqlExtDatabase",
+        "database": os.environ.get("AERORPORT_DB_NAME", "aeroport"),
+        "user": os.environ.get("AERORPORT_DB_USER", "aeroport"),
+        "password": os.environ.get("AERORPORT_DB_PASSWORD", ""),
+        "host": os.environ.get("AERORPORT_DB_HOST", "localhost"),
+        "port": int(os.environ.get("AERORPORT_DB_VPORT", 5432)),
+        "register_hstore": False,
+        # "max_connections": 20,
+    }
+}
+
+DATABASE_PRESET = "default"

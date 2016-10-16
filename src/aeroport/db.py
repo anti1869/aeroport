@@ -1,107 +1,88 @@
 """
-Database interface. Very simple by now.
+PostgreSQL database connector and some generic stuff.
 """
 
-from collections import Sequence
+from itertools import chain
 import logging
-import sqlite3
+from typing import Optional, Iterable, List
 
-import simplejson as json
+import peewee
+from peewee import Model, BaseModel as PeeweeBaseModel
+from peewee_async import Manager
 
-__all__ = ("sqlitedb",)
+
+from sunhead.conf import settings
+from sunhead.utils import get_class_by_path
 
 logger = logging.getLogger(__name__)
 
 
-# TODO: Whole this stuff is likely to be trashed, as it is actually a complete shit.
+master_settings = dict(settings.DATABASE[settings.DATABASE_PRESET])
 
-class SqliteDB(object):
-
-    def __init__(self):
-        self._db_path = None
-        self._connection = None
-
-    def set_db_path(self, db_path: str) -> None:
-        self._db_path = db_path
-
-    def connect(self) -> None:
-        logger.info("Connecting sqlite db %s", self._db_path)
-        self._connection = sqlite3.connect(self._db_path)
-
-    def disconnect(self) -> None:
-        if self._connection is not None:
-            logger.info("Disconnecting sqlite db")
-            self._connection.close()
-
-    @property
-    def connection(self):
-        if self._connection is None:
-            self.connect()
-        return self._connection
-
-    def ensure_tables(self):
-        cursor = self.connection.cursor()
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS flights (
-              airline TEXT,
-              origin TEXT,
-              started TEXT,
-              finished TEXT,
-              num_processed INTEGER
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS airline_settings (
-              airline TEXT,
-              schedule TEXT,
-              enabled INTEGER,
-              targets TEXT
-            )
-            """
-        )
-        self.connection.commit()
-
-    def to_json(self, data) -> str:
-        json_encoded = json.dumps(data)
-        return json_encoded
-
-    def from_json(self, serialized: str):
-        data = json.loads(serialized)
-        return data
-
-    def get(self, table, field_name, cond_field, cond_value, default):
-        cursor = self.connection.cursor()
-        q = 'SELECT {} FROM {} WHERE {} = ?'.format(field_name, table, cond_field)
-        cursor.execute(q, (cond_value,))
-        try:
-            result = cursor.fetchone()[0]
-        except TypeError:
-            result = default
-        return result
-
-    def set(self, table, field_names, values, cond_field, cond_value):
-
-        # Convert to sequences if needed
-        field_names, values = map(lambda x: (x,) if not isinstance(x, (list, tuple)) else x, (field_names, values))
-        set_portion = ",".join(("{} = ?".format(name) for name in field_names))
-
-        cursor = self.connection.cursor()
-        self._ensure_record(cursor, table, cond_field, cond_value)
-        q = "UPDATE {} SET {} WHERE {} = ?".format(table, set_portion, cond_field)
-        cursor.execute(q, values + (cond_value, ))
-        self.connection.commit()
-
-    def _ensure_record(self, cursor, table, cond_field, cond_value):
-        q = 'SELECT ROWID FROM {} WHERE {} = ?'.format(table, cond_field)
-        cursor.execute(q, (cond_value,))
-        result = cursor.fetchone()
-
-        if result is None:
-            q = "INSERT INTO {} ({}) VALUES (?)".format(table, cond_field)
-            cursor.execute(q, (cond_value, ))
+engine_kls = get_class_by_path(master_settings.pop('engine'))
+db = engine_kls(**master_settings)
 
 
-sqlitedb = SqliteDB()
+objects = Manager(db)
+
+
+class BaseModel(Model):
+    """
+    Base Peewee model for all other
+    """
+
+    db_manager = objects
+
+    class Meta:
+        database = db
+
+
+def get_models_from_module(module, base) -> Iterable[PeeweeBaseModel]:
+    """
+    Get models from provided module which have ``base`` class.
+
+    :param module: Module from which to extract models.
+    :param base: Base class to look for.
+    :return: Sequence of models
+    """
+    all_models = filter(
+        lambda x: isinstance(x, PeeweeBaseModel) and base in x.__bases__,
+        module.__dict__.values()
+    )
+    return all_models
+
+
+def get_all_models() -> List[Model]:
+    # TODO: Implement that properly
+    from aeroport.management import models as management_models
+    from aeroport.destinations import models as destination_models
+    all_models = list(chain(
+        get_models_from_module(management_models, BaseModel),
+        get_models_from_module(destination_models, BaseModel),
+    ))
+    return all_models
+
+
+def create_tables(models: Optional[Iterable[Model]] = None) -> None:
+    """Only create the tables if they do not exist."""
+    if models is None:
+        models = get_all_models()
+    db.create_tables(models, safe=True)
+    # for model in models:
+    #     m2ms = getattr(model._meta, "many_to_many", None)
+    #     through_models = [m2m.get_through_model() for m2m in m2ms]
+    #     db.create_tables(through_models, safe=True)
+
+
+def drop_tables(models: Optional[Iterable[str]] = None) -> None:
+    """Drops all existing tables"""
+    if models is None:
+        models = get_all_models()
+    try:
+        db.drop_tables(models, safe=True, cascade=True)
+        # for model in models:
+        #     m2ms = getattr(model._meta, "many_to_many", None)
+        #     through_models = [m2m.get_through_model() for m2m in m2ms]
+        #     db.drop_tables(through_models, safe=True)
+    except peewee.ProgrammingError:
+        logger.warning("Error while dropping tables", exc_info=True)

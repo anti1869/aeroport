@@ -40,8 +40,11 @@ setup(
     ],
     install_requires=[
         "aiocron",
+        "aiopg",
         "beautifulsoup4",
         "colorlog",
+        "peewee_async",
+        # "psycopg2",
         "sunhead",
         "splinter",
     ],

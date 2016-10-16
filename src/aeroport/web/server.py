@@ -13,7 +13,7 @@ from sunhead.conf import settings
 from sunhead.cli.banners import print_banner
 from sunhead.workers.http.server import Server
 
-from aeroport.db import sqlitedb
+from aeroport.sqldb import sqlitedb
 from aeroport import management
 from aeroport.web.rest.urls import urlconf as rest_urlconf
 

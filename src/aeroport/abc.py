@@ -112,6 +112,7 @@ class AbstractOrigin(object, metaclass=ABCMeta):
     def __init__(self, airline):
         self._destination = None
         self._airline = airline
+        self._settings = None
 
     def set_destination(self, class_path: str, **init_kwargs) -> None:
         kls = get_class_by_path(class_path)
@@ -146,8 +147,15 @@ class AbstractOrigin(object, metaclass=ABCMeta):
             raise ValueError("You must set destination first")
         await self.destination.process_payload(payload)
 
+    @property
+    async def settings(self) -> Dict:
+        if self._settings is None:
+            from aeroport.management.models import OriginSettings  # TODO: resolve init order and move up
+            self._settings = await OriginSettings.get_settings(self)
+        return self._settings
 
-from aeroport.db import sqlitedb
+
+from aeroport.sqldb import sqlitedb
 AIRLINE_ENABLED_BY_DEFAULT = True
 
 

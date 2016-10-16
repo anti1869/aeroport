@@ -5,7 +5,7 @@ Direct operations and check what's in the air now.
 from datetime import datetime
 
 from aeroport.abc import AbstractAirline, AbstractOrigin
-from aeroport.db import sqlitedb
+from aeroport.sqldb import sqlitedb
 
 
 class Flight(object):

@@ -5,11 +5,12 @@ Entry point for the application.
 from sunhead.cli.commands.runserver import Runserver
 from sunhead.cli.entrypoint import main as sunhead_main
 
-from aeroport.cli.commands import Airlines, Origins, Process
+from aeroport.cli.commands import Airlines, Origins, Process, InitDB
 
 
 commands = (
     Runserver("aeroport.web.server.AeroportHTTPServer"),
+    InitDB(),
     Airlines(),
     Origins(),
     Process(),
