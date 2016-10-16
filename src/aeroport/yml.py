@@ -203,7 +203,7 @@ class YmlOrigin(AbstractOrigin):
         yield from self._parse(
             feed_file,
             categories_parser=self._categories_generator,
-            # offers_parser=self._offers_generator
+            offers_parser=self._offers_generator
         )
 
     def _parse(self, feed_file: str, categories_parser=None, offers_parser=None):
