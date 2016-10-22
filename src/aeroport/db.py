@@ -2,6 +2,7 @@
 PostgreSQL database connector and some generic stuff.
 """
 
+from collections import OrderedDict, namedtuple
 from itertools import chain
 from enum import Enum
 import logging
@@ -27,12 +28,88 @@ db = engine_kls(**master_settings)
 objects = Manager(db)
 
 
+FieldInfo = namedtuple('FieldResult', [
+    'pk',  # Model field instance
+    'fields',  # Dict of field name -> model field instance
+    'forward_relations',  # Dict of field name -> RelationInfo
+    'reverse_relations',  # Dict of field name -> RelationInfo
+    'fields_and_pk',  # Shortcut for 'pk' + 'fields'
+    'relations'  # Shortcut for 'forward_relations' + 'reverse_relations'
+])
+
+
+RelationInfo = namedtuple('RelationInfo', [
+    'model_field',
+    'related_model',
+    'to_many',
+    'to_field',
+    'has_through_model'
+])
+
+
 class BaseModel(Model):
     """
     Base Peewee model for all other
     """
 
     db_manager = objects
+
+
+    @classmethod
+    def get_fields(cls) -> OrderedDict:
+        fields = OrderedDict()
+        fieldsgen = filter(lambda x: not (getattr(x[1], "rel_model", None)), cls._meta.fields.items())
+        for name, field in fieldsgen:
+            fields[name] = field
+        return fields
+
+    @classmethod
+    def get_relations(cls) -> OrderedDict:
+        return cls._get_forward_relationships(cls._meta)
+
+    @classmethod
+    def _get_to_field(cls, field):
+        # return getattr(field, 'to_fields', None) and field.to_fields[0]
+        return getattr(field, 'to_field', None)
+
+    @classmethod
+    def _get_forward_relationships(cls, opts):
+        """
+        Returns an `OrderedDict` of field names to `RelationInfo`.
+        """
+        forward_relations = OrderedDict()
+        fieldsgen = filter(lambda x: bool(getattr(x[1], "rel_model", None)), opts.fields.items())
+        for name, field in fieldsgen:
+            forward_relations[name] = RelationInfo(
+                model_field=field,
+                related_model=field.rel_model,
+                to_many=False,
+                to_field=cls._get_to_field(field),
+                has_through_model=False
+            )
+        #
+        # Deal with forward many-to-many relationships.
+        for field in getattr(opts, "many_to_many", tuple()):
+            forward_relations[field.name] = RelationInfo(
+                model_field=field,
+                related_model=field.rel_model,
+                to_many=True,
+                # manytomany do not have to_fields
+                to_field=None,
+                has_through_model=False,  # TODO: Fix this in ManyToMany field implementation
+                # has_through_model=(
+                #     not field.rel_model.get_through_model()._meta.auto_created
+                # )
+            )
+
+        return forward_relations
+
+    @classmethod
+    def _get_reverse_relationships(cls, opts):
+        """
+        Returns an `OrderedDict` of field names to `RelationInfo`.
+        """
+        return {}
 
     class Meta:
         database = db

@@ -56,7 +56,7 @@ class Flight(object):
         self._start_time = datetime.now()
         self._start_time_iso = self._datetime_to_iso(self._start_time)
         self._status = FlightStatuses.in_air
-        self._store_data()
+        await self._store_data()
 
     async def finish(self, total_processed=None):
         self._finish_time = datetime.now()
