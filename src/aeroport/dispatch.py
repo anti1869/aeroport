@@ -2,15 +2,25 @@
 Direct operations and check what's in the air now.
 """
 
+import asyncio
+import logging
 from datetime import datetime
 from enum import Enum
 import uuid
 
 import peewee
-from playhouse.postgres_ext import BinaryJSONField
 
-from aeroport.abc import AbstractAirline, AbstractOrigin
+from aeroport.abc import AbstractOrigin
 from aeroport.db import BaseModel, choices_from_enum
+from aeroport.management.utils import get_airline
+from aeroport.destinations.models import Destination
+
+
+logger = logging.getLogger(__name__)
+
+
+class ProcessingException(Exception):
+    """Something wrong with processing"""
 
 
 class FlightStatuses(Enum):
@@ -99,3 +109,22 @@ class Flight(object):
         flight_record.num_processed = self.num_processed
         flight_record.status = self._status.value
         await FlightRecord.db_manager.update(flight_record)
+
+
+async def process_origin(airline_name: str, origin_name: str, destination_name: str, use_await=False) -> None:
+    airline = get_airline(airline_name)
+    origin = airline.get_origin(origin_name)
+
+    if destination_name:
+        try:
+            dest = await Destination.db_manager.get(Destination, enabled=True, name=destination_name)
+        except Destination.DoesNotExist:
+            logger.error("There is not destination named '%s'" % destination_name)
+            raise ProcessingException
+        else:
+            await origin.set_destination(dest.class_name, **dest.settings)
+
+    if use_await:
+        await origin.process()
+    else:
+        asyncio.ensure_future(origin.process())

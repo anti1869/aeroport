@@ -9,9 +9,7 @@ from aiohttp import web_exceptions
 
 from sunhead.rest.views import JSONView
 
-from aeroport import management
-from aeroport.destinations.models import Destination
-from aeroport.dispatch import FlightRecord
+from aeroport.dispatch import FlightRecord, process_origin, ProcessingException
 
 
 logger = logging.getLogger(__name__)
@@ -47,17 +45,9 @@ class FlightsListView(JSONView):
         if not all((airline_name, origin_name)):
             raise web_exceptions.HTTPBadRequest
 
-        airline = management.get_airline(airline_name)
-        origin = airline.get_origin(origin_name)
-        if destination_name:
-            try:
-                dest = await Destination.db_manager.get(Destination, enabled=True, name=destination_name)
-            except Destination.DoesNotExist:
-                logger.error("There is not destination named '%s'" % destination_name)
-                raise web_exceptions.HTTPBadRequest
-            else:
-                await origin.set_destination(dest.class_name, **dest.settings)
-
-        asyncio.ensure_future(origin.process())
+        try:
+            await process_origin(airline_name, origin_name, destination_name)
+        except ProcessingException:
+            raise web_exceptions.HTTPExpectationFailed
 
         raise web_exceptions.HTTPNoContent

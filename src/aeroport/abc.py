@@ -12,7 +12,7 @@ from sunhead.conf import settings
 from sunhead.utils import get_submodule_list, get_class_by_path
 
 from aeroport.db import objects
-from aeroport.management.models import AirlineSettings, OriginSettings  # TODO: resolve init order and move up
+from aeroport.management.models import AirlineSettings, OriginSettings
 
 AirlineDescription = namedtuple("AirlineDescription", "name module_path")
 OriginDescription = namedtuple("OriginDescription", "name module_path")

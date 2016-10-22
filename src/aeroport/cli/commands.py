@@ -51,8 +51,8 @@ class Airlines(Command):
     def handler(self, options) -> None:
         """Print list of registered airlines"""
 
-        from aeroport import management
-        for airline in management.get_airlines_list():
+        from aeroport.management.utils import get_airlines_list
+        for airline in get_airlines_list():
             print("{} ({})".format(airline.name, airline.module_path))
 
     def get_parser(self):
@@ -68,8 +68,8 @@ class Origins(Command):
         """Print list of origins, available in airline"""
 
         # TODO: Graceful error exceptions here
-        from aeroport import management
-        airline = management.get_airline(options["airline"])
+        from aeroport.management.utils import get_airline
+        airline = get_airline(options["airline"])
         for origin in airline.get_origin_list():
             print("{} {} ({})".format(airline.name, origin.name, origin.module_path))
 
@@ -98,24 +98,14 @@ class Process(RunInLoopMixin, Command):
         loop.run_until_complete(self._handler(options))
 
     async def _handler(self, options):
-        from aeroport import management
-        airline = management.get_airline(options["airline"])
-        origin = airline.get_origin(options["origin"])
+        from aeroport.dispatch import process_origin, ProcessingException
 
-        from sunhead.conf import settings
-        from aeroport.destinations.models import Destination
-
-        requested_destination = options.get("destination")
-        if requested_destination:
-            try:
-                dest = await Destination.db_manager.get(Destination, enabled=True, name=requested_destination)
-            except Destination.DoesNotExist:
-                print("There is not destination named '%s'" % requested_destination)
-                quit(-1)
-            else:
-                await origin.set_destination(dest.class_name, **dest.settings)
-
-        await origin.process()
+        try:
+            await process_origin(
+                options["airline"], options["origin"], options.get("destination"), use_await=True
+            )
+        except ProcessingException:
+            quit(-1)
 
     def get_parser(self):
         parser_command = argparse.ArgumentParser(description=self.handler.__doc__)

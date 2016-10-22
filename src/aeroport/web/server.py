@@ -13,7 +13,8 @@ from sunhead.conf import settings
 from sunhead.cli.banners import print_banner
 from sunhead.workers.http.server import Server
 
-from aeroport import management
+from aeroport.management.utils import get_airlines_list, get_airline
+from aeroport.dispatch import process_origin
 from aeroport.web.rest.urls import urlconf as rest_urlconf
 
 
@@ -56,25 +57,34 @@ class AeroportHTTPServer(Server):
         return self.app["timetable"]
 
     async def set_timetable(self, loop):
-        for airline_info in management.get_airlines_list():
-            airline = management.get_airline(airline_info.name)
+        for airline_info in get_airlines_list():
+            airline = get_airline(airline_info.name)
             schedule = await airline.get_schedule()
-            for origin_name, crontab in schedule.items():
-                self._set_origin_processing_crontab(airline.name, origin_name, crontab)
+            for origin_name, entries in schedule.items():
+                for entry in entries:
+                    destination = entry.get("destination", None)
+                    crontab = entry.get("crontab", None)
+                    if not crontab:
+                        continue
+                    self._set_origin_processing_crontab(airline.name, origin_name, destination, crontab)
 
-    def _set_origin_processing_crontab(self, airline_name: str, origin_name: str, crontab: str) -> None:
-        key = "{}_{}".format(airline_name, origin_name)
+    def _set_origin_processing_crontab(self, airline_name: str, origin_name: str, destination: str, crontab: str):
+        key = "{}_{}_{}".format(airline_name, origin_name, destination)
         if key in self.timetable:
             self.timetable[key].stop()
-        processor = partial(self._process_origin, airline_name, origin_name)
+        processor = partial(self._process_origin, airline_name, origin_name, destination)
         schedule_executor = aiocron.crontab(crontab, processor, start=True)
-        logger.debug("Scheduling airline=%s, origin=%s at '%s'", airline_name, origin_name, crontab)
+        logger.debug(
+            "Scheduling airline=%s, origin=%s, destination=%s at '%s'",
+            airline_name, origin_name, destination, crontab
+        )
         self.timetable["key"] = schedule_executor
 
-    async def _process_origin(self, airline_name, origin_name: str) -> None:
-        logger.info("Starting scheduled processing: airline=%s, origin=%s", airline_name, origin_name)
-        airline = management.get_airline(airline_name)
-        origin = airline.get_origin(origin_name)
-        asyncio.ensure_future(
-            origin.process()
+    async def _process_origin(self, airline_name, origin_name, destination_name):
+        logger.info(
+            "Starting scheduled processing: airline=%s, origin=%s, destination=%s",
+            airline_name,
+            origin_name,
+            destination_name
         )
+        await process_origin(airline_name, origin_name, destination_name)
