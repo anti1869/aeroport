@@ -10,12 +10,15 @@ class AirlineSettings(BaseModel):
     """
     Persistent layer for airline settings.
     """
-    airline = peewee.CharField()
-    enabled = peewee.BooleanField()
-    schedule = BinaryJSONField()
-    destinations = peewee.CharField()  # TODO: Switch to m2m
+    airline = peewee.CharField(index=True)
+    enabled = peewee.BooleanField(default=True)
+    schedule = BinaryJSONField(null=True)
+    destinations = peewee.CharField(null=True)  # TODO: Switch to m2m
 
     async def get_destinations(self, only_enabled=True):
+        if self.destinations is None:
+            return tuple()
+
         names = str(self.destinations).split(",")
         q = Destination.select().where(Destination.name.in_(names))
         if only_enabled:

@@ -8,8 +8,6 @@ from typing import Any
 
 from sunhead.cli.abc import Command
 
-from aeroport import management
-
 
 class RunInLoopMixin(object):
 
@@ -53,6 +51,7 @@ class Airlines(Command):
     def handler(self, options) -> None:
         """Print list of registered airlines"""
 
+        from aeroport import management
         for airline in management.get_airlines_list():
             print("{} ({})".format(airline.name, airline.module_path))
 
@@ -69,7 +68,7 @@ class Origins(Command):
         """Print list of origins, available in airline"""
 
         # TODO: Graceful error exceptions here
-
+        from aeroport import management
         airline = management.get_airline(options["airline"])
         for origin in airline.get_origin_list():
             print("{} {} ({})".format(airline.name, origin.name, origin.module_path))
@@ -99,10 +98,10 @@ class Process(RunInLoopMixin, Command):
         loop.run_until_complete(self._handler(options))
 
     async def _handler(self, options):
+        from aeroport import management
         airline = management.get_airline(options["airline"])
         origin = airline.get_origin(options["origin"])
 
-        from aeroport.sqldb import sqlitedb
         from sunhead.conf import settings
         from aeroport.destinations.models import Destination
 
@@ -115,10 +114,6 @@ class Process(RunInLoopMixin, Command):
                 quit(-1)
             else:
                 await origin.set_destination(dest.class_name, **dest.settings)
-
-        sqlitedb.set_db_path(settings.DB_PATH)
-        sqlitedb.connect()
-        sqlitedb.ensure_tables()
 
         await origin.process()
 

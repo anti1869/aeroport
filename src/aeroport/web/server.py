@@ -13,14 +13,13 @@ from sunhead.conf import settings
 from sunhead.cli.banners import print_banner
 from sunhead.workers.http.server import Server
 
-from aeroport.sqldb import sqlitedb
 from aeroport import management
 from aeroport.web.rest.urls import urlconf as rest_urlconf
 
 
 logger = logging.getLogger(__name__)
 
-REST_URL_PREFIX = "/api/1.0"
+REST_URL_PREFIX = "/api/v1.0"
 
 
 class AeroportHTTPServer(Server):
@@ -43,14 +42,11 @@ class AeroportHTTPServer(Server):
         super().print_banner()
 
     def init_requirements(self, loop):
-        sqlitedb.set_db_path(settings.DB_PATH)
-        sqlitedb.connect()
-        sqlitedb.ensure_tables()
-        self.set_timetable(loop)
+        loop.run_until_complete(self.set_timetable(loop))
 
     def cleanup(self, srv, handler, loop):
-        sqlitedb.disconnect()
         # TODO: Kill all scraping and processing executors
+        pass
 
     # TODO: Move to separate module, connect with airline schedule change API
     @property
@@ -59,10 +55,10 @@ class AeroportHTTPServer(Server):
             self.app["timetable"] = {}
         return self.app["timetable"]
 
-    def set_timetable(self, loop):
+    async def set_timetable(self, loop):
         for airline_info in management.get_airlines_list():
             airline = management.get_airline(airline_info.name)
-            schedule = airline.get_schedule()
+            schedule = await airline.get_schedule()
             for origin_name, crontab in schedule.items():
                 self._set_origin_processing_crontab(airline.name, origin_name, crontab)
 

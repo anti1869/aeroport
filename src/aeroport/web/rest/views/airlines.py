@@ -63,8 +63,8 @@ class AirlineView(BaseAirlineView):
                 "title": airline.title,
             },
             "origins": origins_data,
-            "enabled": airline.is_enabled(),
-            "schedule": airline.get_schedule(),
+            "enabled": await airline.is_enabled(),
+            "schedule": await airline.get_schedule(),
             "targets": {},
         }
         return self.json_response(ctx)
@@ -80,7 +80,7 @@ class AirlineView(BaseAirlineView):
         enabled = data.get("enabled", None)
         if enabled is not None:
             value = str(enabled).lower() in {"true", "1"}
-            airline.set_is_enabled(value)
+            await airline.set_is_enabled(value)
 
         raise web_exceptions.HTTPNoContent
 
@@ -98,6 +98,6 @@ class OriginView(BaseAirlineView):
             "origin": {
                 "name": self.requested_origin,  # Fixme: Add property name in Origin object
             },
-            "schedule": airline.get_schedule(self.requested_origin),
+            "schedule": await airline.get_schedule(self.requested_origin),
         }
         return self.json_response(ctx)
