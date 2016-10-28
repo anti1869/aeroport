@@ -137,7 +137,7 @@ class YmlOrigin(AbstractOrigin):
 
         await flight.finish(total_processed)
 
-    async def process_export_url(self, export_url: str, url_kwargs: Dict = None) -> int:
+    async def process_export_url(self, export_url: str, url_kwargs: Dict) -> int:
         """
         Process one given feed url.
 
@@ -145,7 +145,11 @@ class YmlOrigin(AbstractOrigin):
         """
 
         # Preparations
-        feed_file = await self.get_feed_file(export_url)
+        shop_name = url_kwargs.get("shop_name")
+        if shop_name is None:
+            return
+
+        feed_file = await self.get_feed_file(export_url, shop_name)
         if feed_file is None:
             logger.error("Can't get valid feed file, aborting")
             return
@@ -184,13 +188,13 @@ class YmlOrigin(AbstractOrigin):
 
         return idx
 
-    async def get_feed_file(self, export_url: str, force_download=False) -> str:
+    async def get_feed_file(self, export_url: str, shop_name: str, force_download=False) -> str:
         """
         Download feed or use local cache.
 
         :return: Full path on filesystem to prepared feed file.
         """
-        as_filename = "{}.yml".format(self.name)
+        as_filename = "{}.yml".format(shop_name)
         path = await self._cache.get(export_url, as_filename, force_download)
         return path
 
