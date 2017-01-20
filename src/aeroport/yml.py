@@ -9,7 +9,7 @@ import hashlib
 import logging
 import os
 import time
-from typing import Optional, Dict, Iterable, Sequence
+from typing import Optional, Dict, Iterable, Sequence, Generator
 from xml.etree import cElementTree as ET
 from xml.etree.cElementTree import iterparse
 
@@ -137,7 +137,7 @@ class YmlOrigin(AbstractOrigin):
 
         await flight.finish(total_processed)
 
-    async def process_export_url(self, export_url: str, url_kwargs: Dict) -> int:
+    async def process_export_url(self, export_url: str, url_kwargs: Dict) -> Optional[int]:
         """
         Process one given feed url.
 
@@ -184,7 +184,7 @@ class YmlOrigin(AbstractOrigin):
             categories_id_list=id_lists[YmlFeedItemTypes.category],
             offers_id_list=id_lists[YmlFeedItemTypes.offer]
         )
-        # await self.send_to_destination(result)
+        await self.send_to_destination(result)
 
         return idx
 
@@ -198,7 +198,7 @@ class YmlOrigin(AbstractOrigin):
         path = await self._cache.get(export_url, as_filename, force_download)
         return path
 
-    def analyze_feed(self, feed_file: str) -> FeedInfo:
+    def analyze_feed(self, feed_file: str) -> Optional[FeedInfo]:
         """
         Quickly get stats about feed.
         """
@@ -231,15 +231,16 @@ class YmlOrigin(AbstractOrigin):
 
     def _parse(self, feed_file: str, categories_parser=None, offers_parser=None):
         """
-        This will run process of iteration through all elements in a Feed, applying parsing method to
-        categories and items collections.
+        This will run process of iteration through all elements in a Feed, applying parsing method
+        to categories and items collections.
 
         :param feed_file: Path to the feed file.
         :param categories_parser: Method that will parse all categories in given context.
         :param offers_parser: Method that will parse all items in given context.
         :return: Doesn"t return anything.
         """
-        # Check what caller was intended to parse and put memory cleaning iterators to unneeded portions of YML XML
+        # Check what caller was intended to parse and put memory cleaning iterators to unneeded
+        # portions of YML XML
         if categories_parser is None:
             categories_parser = partial(self._dismiss_generator, "categories")
         if offers_parser is None:
