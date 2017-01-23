@@ -76,11 +76,18 @@ def get_attrib(elem, names, cast_type=None, default=None):
 
 
 class YMLItemAdapter(AbstractItemAdapter):
+    """
+    Concrete airline must subclass and implement this adapter.
+    """
     def extract_raw_items_from_html(self, html) -> Sequence:
         raise NotImplementedError()
 
 
 class FeedInfo(Payload):
+    """
+    Information about feed that can be interest to someone.
+    """
+    shop_name = Field()
     total_count = Field()
     categories_count = Field()
     offers_count = Field()
@@ -90,11 +97,22 @@ class FeedInfo(Payload):
 
 
 class FeedParsingResult(Payload):
+    """
+    After parsing the whole feed, this should be sent to the destination, so that
+    remote subscribers can do their cleanup such as delete non-existing items in feed.
+    """
+    shop_name = Field()
     offers_id_list = Field()
     categories_id_list = Field()
 
 
 class YmlOrigin(AbstractOrigin):
+    """
+    This origin will download remote YML feeds to local temporary storage (if there is no
+    fresh file there already) and process its items and categories. Object will be fed
+    to the item and categories adapters (which must be implemented separately from this class)
+    and the result will be sent to the destination.
+    """
 
     ADAPTER_MAPPING = {}
 
@@ -126,6 +144,11 @@ class YmlOrigin(AbstractOrigin):
         logger.info("%s %% Processed %s of %s yml items", pc, processed, total)
 
     async def process(self):
+        """
+        Starting point for feeds consuming. Several feeds will be processed, as yielded
+        by urlgenerator.
+        """
+
         flight = Flight(self)
         await flight.start()
 
@@ -154,7 +177,7 @@ class YmlOrigin(AbstractOrigin):
             logger.error("Can't get valid feed file, aborting")
             return
 
-        feed_info = self.analyze_feed(feed_file)
+        feed_info = self.analyze_feed(feed_file, shop_name)
         await self.send_to_destination(feed_info)
 
         # Parsing process
@@ -181,6 +204,7 @@ class YmlOrigin(AbstractOrigin):
 
         # Finalize
         result = FeedParsingResult(
+            shop_name=shop_name,
             categories_id_list=id_lists[YmlFeedItemTypes.category],
             offers_id_list=id_lists[YmlFeedItemTypes.offer]
         )
@@ -198,7 +222,7 @@ class YmlOrigin(AbstractOrigin):
         path = await self._cache.get(export_url, as_filename, force_download)
         return path
 
-    def analyze_feed(self, feed_file: str) -> Optional[FeedInfo]:
+    def analyze_feed(self, feed_file: str, shop_name: Optional[str] = None) -> Optional[FeedInfo]:
         """
         Quickly get stats about feed.
         """
@@ -220,6 +244,7 @@ class YmlOrigin(AbstractOrigin):
         info["categories_count"] = categories_count
         info["offers_count"] = offers_count
         info["total_count"] = categories_count + offers_count
+        info["shop_name"] = shop_name
         return info
 
     def parse_feed(self, feed_file: str) -> Iterable[Dict]:
