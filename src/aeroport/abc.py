@@ -130,6 +130,11 @@ class AbstractOrigin(object, metaclass=ABCMeta):
         self._destination = kls(**init_kwargs)
         await self._destination.prepare()
 
+    def set_options(self, **options):
+        """
+        Set configuration options for the origin, that will affect its processing.
+        """
+
     @property
     def airline(self):
         return self._airline

@@ -111,13 +111,18 @@ class Flight(object):
         await FlightRecord.db_manager.update(flight_record)
 
 
-async def process_origin(airline_name: str, origin_name: str, destination_name: str, use_await=False) -> None:
+async def process_origin(
+        airline_name: str, origin_name: str, destination_name: str, use_await=False, **options):
+
     airline = get_airline(airline_name)
     origin = airline.get_origin(origin_name)
+    origin.set_options(**options)
 
     if destination_name:
         try:
-            dest = await Destination.db_manager.get(Destination, enabled=True, name=destination_name)
+            dest = await Destination.db_manager.get(
+                Destination, enabled=True, name=destination_name
+            )
         except Destination.DoesNotExist:
             logger.error("There is not destination named '%s'" % destination_name)
             raise ProcessingException

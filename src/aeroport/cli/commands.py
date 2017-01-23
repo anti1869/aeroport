@@ -5,8 +5,17 @@ Command line interface commands, available in this app.
 import argparse
 import asyncio
 from typing import Any
+import logging
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 from sunhead.cli.abc import Command
+
+
+logger = logging.getLogger(__name__)
 
 
 class RunInLoopMixin(object):
@@ -101,8 +110,17 @@ class Process(RunInLoopMixin, Command):
         from aeroport.dispatch import process_origin, ProcessingException
 
         try:
+            print(options["options"])
+            origin_options = json.loads(options["options"]) if options["options"] else {}
+        except json.JSONDecodeError:
+            logger.error("Origins options must be valid JSON.", exc_info=True)
+            origin_options = None
+            quit(-1)
+
+        try:
             await process_origin(
-                options["airline"], options["origin"], options.get("destination"), use_await=True
+                options["airline"], options["origin"], options.get("destination"),
+                use_await=True, **origin_options
             )
         except ProcessingException:
             quit(-1)
@@ -126,9 +144,9 @@ class Process(RunInLoopMixin, Command):
             help="Specific destination",
         )
         parser_command.add_argument(
-            "-t",
-            dest="target",
+            "-o",
+            dest="options",
             type=str,
-            help="Specific destination target role",
+            help="Origin processing options in JSON",
         )
         return parser_command
