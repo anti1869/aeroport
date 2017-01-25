@@ -2,6 +2,7 @@
 Things to extract data from Yandex Market Format (yml). Not to be confused with YAML.
 """
 
+import asyncio  # noqa
 from copy import copy
 from enum import Enum
 from functools import partial
@@ -189,10 +190,20 @@ class YmlOrigin(AbstractOrigin):
         for idx, item in enumerate(filter(None, self.parse_feed(feed_file)), start=1):
             if idx % 100 == 0:
                 await self.progress_callback(idx, feed_info["total_count"])
+                # For some reason, messages are not sent if there is constant
+                # sending without interruptions. Probably some issue in stream
+                # interface and ensure_futures?
+                # This sleep allows some time for messages to be actually sent, so
+                # store subscriber can receive them immediately.
+                # await asyncio.sleep(0.05)
 
-            adapter = self._adapters.get(item["type"], None)
-            if not adapter:
-                continue
+            # Why this is here?
+            # # Get adapter by item type (offer or category)
+            # adapter = self._adapters.get(item["type"], None)
+            # if not adapter:
+            #     continue
+
+            # Add item's original id to the list of collected ids
             id_lists.get(item["type"], set()).add(item["original_id"])
             item["payload"].postprocess(
                 **{
@@ -248,6 +259,10 @@ class YmlOrigin(AbstractOrigin):
         return info
 
     def parse_feed(self, feed_file: str) -> Iterable[Dict]:
+        """
+        Payload generator. Will yield (presumably) Item and Category payloads, but concrete
+        payloads are defined in implementation of the abstracts this class defines.
+        """
         yield from self._parse(
             feed_file,
             categories_parser=partial(self._generator, "category", "categories"),
@@ -296,6 +311,13 @@ class YmlOrigin(AbstractOrigin):
                     raise StopIteration()
 
     def _generator(self, key, tag_many, context):
+        """
+        This should be called with context set to beginning of the <offers> or <categories>
+        tag (or other tag you consider as parent for something).
+
+        Generator will iterate through all children of this parent tag, which would be <key></key>,
+        get adapter for the "key" tag, apply it, add some meta and yield adapted item.
+        """
         for event, elem in context:
             if event == "start" and elem.tag == key:
                 raw_data_collector = XMLElementsCollection(elem)

@@ -1,6 +1,6 @@
 import peewee
-import peewee_async
 from playhouse.postgres_ext import BinaryJSONField
+from typing import Dict
 
 from aeroport.db import BaseModel
 from aeroport.destinations.models import Destination
@@ -36,7 +36,7 @@ class OriginSettings(BaseModel):
     settings = BinaryJSONField()
 
     @classmethod
-    async def get_settings(cls, origin):
+    async def get_settings(cls, origin) -> Dict:
         try:
             obj = await cls.db_manager.get(
                 cls,

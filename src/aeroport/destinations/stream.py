@@ -9,6 +9,9 @@ from aeroport.abc import AbstractDestination, AbstractPayload
 
 
 class StreamDestination(AbstractDestination):
+    """
+    Send payloads to the SunHead framework's stream (which is distributed queues).
+    """
 
     def __init__(self, **init_kwargs):
         super().__init__(**init_kwargs)

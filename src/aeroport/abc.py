@@ -125,7 +125,7 @@ class AbstractOrigin(object, metaclass=ABCMeta):
         self._airline = airline
         self._settings = None
 
-    async def set_destination(self, class_path: str, **init_kwargs) -> None:
+    async def set_destination(self, class_path: str, **init_kwargs):
         kls = get_class_by_path(class_path)
         self._destination = kls(**init_kwargs)
         await self._destination.prepare()
@@ -159,7 +159,7 @@ class AbstractOrigin(object, metaclass=ABCMeta):
             self._destination = self.default_destination
         return self._destination
 
-    async def send_to_destination(self, payload: AbstractPayload) -> None:
+    async def send_to_destination(self, payload: AbstractPayload):
         if self.destination is None:
             raise ValueError("You must set destination first")
         await self.destination.process_payload(payload)
