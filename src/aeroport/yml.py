@@ -144,6 +144,13 @@ class YmlOrigin(AbstractOrigin):
         pc = int(processed * 100 / total)
         logger.info("%s %% Processed %s of %s yml items", pc, processed, total)
 
+    def set_options(self, **options):
+        """
+        Set additional operating options for this origin.
+        """
+        self._force_cache = options.pop("force_cache", False)
+        super().set_options(**options)
+
     async def process(self):
         """
         Starting point for feeds consuming. Several feeds will be processed, as yielded
@@ -230,7 +237,7 @@ class YmlOrigin(AbstractOrigin):
         :return: Full path on filesystem to prepared feed file.
         """
         as_filename = "{}.yml".format(shop_name)
-        path = await self._cache.get(export_url, as_filename, force_download)
+        path = await self._cache.get(export_url, as_filename, force_download, self._force_cache)
         return path
 
     def analyze_feed(self, feed_file: str, shop_name: Optional[str] = None) -> Optional[FeedInfo]:

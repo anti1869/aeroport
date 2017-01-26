@@ -110,7 +110,6 @@ class Process(RunInLoopMixin, Command):
         from aeroport.dispatch import process_origin, ProcessingException
 
         try:
-            print(options["options"])
             origin_options = json.loads(options["options"]) if options["options"] else {}
         except json.JSONDecodeError:
             logger.error("Origins options must be valid JSON.", exc_info=True)
