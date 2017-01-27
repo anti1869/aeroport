@@ -123,6 +123,8 @@ class YmlOrigin(AbstractOrigin):
             item_type: kls() for item_type, kls in self.ADAPTER_MAPPING.items()
         }
         self._cache = self._init_file_url_cache()
+        self._force_cache = False
+        self._force_download = False
 
     def _init_file_url_cache(self) -> FileUrlCache:
         conf = dict(settings.FILE_URL_CACHE["storage"])
@@ -148,6 +150,7 @@ class YmlOrigin(AbstractOrigin):
         """
         Set additional operating options for this origin.
         """
+        self._force_download = options.pop("force_download", False)
         self._force_cache = options.pop("force_cache", False)
         super().set_options(**options)
 
@@ -230,14 +233,14 @@ class YmlOrigin(AbstractOrigin):
 
         return idx
 
-    async def get_feed_file(self, export_url: str, shop_name: str, force_download=False) -> str:
+    async def get_feed_file(self, export_url: str, shop_name: str) -> str:
         """
         Download feed or use local cache.
 
         :return: Full path on filesystem to prepared feed file.
         """
         as_filename = "{}.yml".format(shop_name)
-        path = await self._cache.get(export_url, as_filename, force_download, self._force_cache)
+        path = await self._cache.get(export_url, as_filename, self._force_download, self._force_cache)
         return path
 
     def analyze_feed(self, feed_file: str, shop_name: Optional[str] = None) -> Optional[FeedInfo]:

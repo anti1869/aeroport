@@ -1,11 +1,15 @@
+import logging
+from functools import partial
 import os
 import shutil
-from functools import partial
 from typing import BinaryIO, Iterable, Optional
 
 from aeroport.storage.abc import AbstractStorage, ObjectInStorage
 from aeroport.storage import storage_executor
 from aeroport.storage import exceptions
+
+
+logger = logging.getLogger(__name__)
 
 
 class FileSystemStorage(AbstractStorage):
@@ -92,14 +96,19 @@ class FileSystemStorage(AbstractStorage):
         object_path = self._make_full_path(bucket_name, object_name)
         size = 0
         with open(object_path, 'wb') as f:
+            cnt = 0
             while True:
                 # TODO: aiohttp > 1.0
                 # chunk = await file_data.read_chunk()
                 # TODO: Distinguish between aiohttp and generic (if there is content present)
-                chunk = await data.content.read(8096)
+                chunk = await data.content.read(1024 * 256)
                 if not chunk:
                     break
                 size += len(chunk)
+                cnt += 1
+                if cnt >= 20:
+                    logger.info("%.2f Mb put to storage", size / 1024.0 / 1024.0)
+                    cnt = 0
                 f.write(chunk)
 
         result = ObjectInStorage(
