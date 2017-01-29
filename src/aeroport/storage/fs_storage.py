@@ -116,6 +116,7 @@ class FileSystemStorage(AbstractStorage):
             path=self._make_full_path(bucket_name, object_name),
             url=self._make_url(bucket_name, object_name)
         )
+
         return result
 
     def _fput_object(self, object_path: str, file_path: str):

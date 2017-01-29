@@ -39,6 +39,7 @@ class FileUrlCache(object):
         self._storage = storage
         self._bucket = bucket
         self._expires = expires
+        self._download_hooks = []
 
     async def get(
             self, url: str, as_filename: str,
@@ -103,4 +104,11 @@ class FileUrlCache(object):
                 async with session.get(url) as response:
                     assert response.status == 200
                     cached_file = await self._storage.put(self._bucket, as_filename, response)
+
+        for hook in self._download_hooks:
+            cached_file = await hook(cached_file)
+
         return cached_file
+
+    def add_download_hook(self, hook):
+        self._download_hooks.append(hook)

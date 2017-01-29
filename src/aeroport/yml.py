@@ -49,6 +49,13 @@ class XMLElementsCollection(object):
         return self._data
 
 
+def to_int(data):
+    if hasattr(data, "encode"):
+        data = data.encode()
+    result = int(hashlib.md5(data).hexdigest()[:14], 16)
+    return result
+
+
 def get_attrib(elem, names, cast_type=None, default=None):
     """
     Get attribute of xml element tag which name can be on the provided list.
@@ -69,7 +76,7 @@ def get_attrib(elem, names, cast_type=None, default=None):
                 except ValueError as e:
                     # There is problem casting type. Try to workaround
                     if cast_type == int:
-                        int(hashlib.md5(result).hexdigest()[:16], 16)
+                        result = to_int(result)
                     else:
                         raise ValueError(e)
             return result
@@ -134,6 +141,9 @@ class YmlOrigin(AbstractOrigin):
         storage = storage_class(**conf)
         cache = FileUrlCache(storage, bucket, expires)
         return cache
+
+    def unpack_file(self):
+        pass
 
     @property
     def export_url(self):
@@ -240,7 +250,8 @@ class YmlOrigin(AbstractOrigin):
         :return: Full path on filesystem to prepared feed file.
         """
         as_filename = "{}.yml".format(shop_name)
-        path = await self._cache.get(export_url, as_filename, self._force_download, self._force_cache)
+        path = await self._cache.get(
+            export_url, as_filename, self._force_download, self._force_cache)
         return path
 
     def analyze_feed(self, feed_file: str, shop_name: Optional[str] = None) -> Optional[FeedInfo]:
