@@ -11,8 +11,10 @@ import logging
 import os
 import time
 from typing import Optional, Dict, Iterable, Sequence, Generator
+from urllib import parse
 from xml.etree import cElementTree as ET
 from xml.etree.cElementTree import iterparse
+import zipfile
 
 
 from sunhead.conf import settings
@@ -142,9 +144,6 @@ class YmlOrigin(AbstractOrigin):
         cache = FileUrlCache(storage, bucket, expires)
         return cache
 
-    def unpack_file(self):
-        pass
-
     @property
     def export_url(self):
         raise NotImplementedError()
@@ -250,9 +249,43 @@ class YmlOrigin(AbstractOrigin):
         :return: Full path on filesystem to prepared feed file.
         """
         as_filename = "{}.yml".format(shop_name)
+        ext = self._get_url_extension(export_url)
+        download_as = as_filename + ".zip" if ext == ".zip" else as_filename
+
         path = await self._cache.get(
-            export_url, as_filename, self._force_download, self._force_cache)
+            export_url, download_as, self._force_download, self._force_cache)
+
+        if download_as != as_filename:
+            path = self._unzip_first(path, os.path.join(os.path.dirname(path), as_filename))
+
         return path
+
+    def _get_url_extension(self, url: str, default: Optional[str] = "") -> str:
+        # It's better to merge unpacking with downloading process to get real
+        # file format from content/type header
+        path = parse.urlparse(url).path
+        try:
+            ext = os.path.splitext(path)[1]
+        except IndexError:
+            return default
+        return ext
+
+    def _unzip_first(self, archive_path: str, save_as: str) -> Optional[str]:
+        try:
+            zfile = zipfile.ZipFile(archive_path)
+            name = zfile.namelist()[0]
+        except (IndexError, zipfile.BadZipfile):
+            logger.error("Can't process zip file '%s'", archive_path, exc_info=True)
+            return
+
+        if os.path.isfile(save_as):
+            os.remove(save_as)
+
+        logger.info("Decompressing %s...", name)
+        with open(save_as, "wb") as fd:
+            fd.write(zfile.read(name))
+
+        return save_as
 
     def analyze_feed(self, feed_file: str, shop_name: Optional[str] = None) -> Optional[FeedInfo]:
         """
