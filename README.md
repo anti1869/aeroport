@@ -1,5 +1,5 @@
 Aeroport
---------
+========
 
 ***This preview is pre-beta, pre-alpha, pre-anything, so its completely unsuseful in real projects. 
 More work is on the way.*** 
@@ -11,3 +11,13 @@ data feeds, etc...), adapt data and deliver it further to destinations (e. g. pr
 
 So it's like an airport where each airline "declares" its own arrivals, destinations and transport,
 while using common hub insfrastructure.
+
+Quick commands
+--------------
+
+```
+aeroport airlines  # which airlines are installed
+
+aeroport process  
+aeroport process -d [DESTINATION_NAME] AIRLINE_NAME ORIGIN_NAME
+```

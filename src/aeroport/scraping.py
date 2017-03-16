@@ -111,8 +111,8 @@ class ScrapingOrigin(AbstractDownloader, AbstractOrigin):
         super().__init__(*args, **kwargs)
 
     async def process(self):
-        flight = Flight(self.airline, self)
-        flight.start()
+        flight = Flight(self)
+        await flight.start()
         num = 0
         for scheme in self.SCRAPE_SCHEMES:
             adapters = tuple((cls(**init_kwargs) for cls, init_kwargs in scheme.adapters))
@@ -123,7 +123,7 @@ class ScrapingOrigin(AbstractDownloader, AbstractOrigin):
                         if payload is not None:
                             payload.postprocess(**url_info.kwargs)
                             await self.send_to_destination(payload)
-        flight.finish(num)
+        await flight.finish(num)
 
 
 class BrowserScrapingOrigin(BrowserDownloader, ScrapingOrigin):

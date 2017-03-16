@@ -11,6 +11,9 @@ from typing import Tuple, Sequence, Optional, Dict
 from sunhead.conf import settings
 from sunhead.utils import get_submodule_list, get_class_by_path
 
+from aeroport.db import objects
+from aeroport.management.models import AirlineSettings, OriginSettings
+
 AirlineDescription = namedtuple("AirlineDescription", "name module_path")
 OriginDescription = namedtuple("OriginDescription", "name module_path")
 UrlInfo = namedtuple("UrlInfo", "url kwargs")
@@ -100,6 +103,14 @@ class AbstractPayload(DictItem, metaclass=InheritableFieldsMeta):
 class AbstractDestination(object, metaclass=ABCMeta):
 
     def __init__(self, **init_kwargs):
+        self._init_kwargs = init_kwargs
+
+    @abstractmethod
+    async def prepare(self):
+        pass
+
+    @abstractmethod
+    async def release(self):
         pass
 
     @abstractmethod
@@ -112,10 +123,17 @@ class AbstractOrigin(object, metaclass=ABCMeta):
     def __init__(self, airline):
         self._destination = None
         self._airline = airline
+        self._settings = None
 
-    def set_destination(self, class_path: str, **init_kwargs) -> None:
+    async def set_destination(self, class_path: str, **init_kwargs):
         kls = get_class_by_path(class_path)
         self._destination = kls(**init_kwargs)
+        await self._destination.prepare()
+
+    def set_options(self, **options):
+        """
+        Set configuration options for the origin, that will affect its processing.
+        """
 
     @property
     def airline(self):
@@ -141,26 +159,28 @@ class AbstractOrigin(object, metaclass=ABCMeta):
             self._destination = self.default_destination
         return self._destination
 
-    async def send_to_destination(self, payload: AbstractPayload) -> None:
+    async def send_to_destination(self, payload: AbstractPayload):
         if self.destination is None:
             raise ValueError("You must set destination first")
         await self.destination.process_payload(payload)
 
-
-from aeroport.db import sqlitedb
-AIRLINE_ENABLED_BY_DEFAULT = True
+    @property
+    async def settings(self) -> Dict:
+        if self._settings is None:
+            self._settings = await OriginSettings.get_settings(self)
+        return self._settings
 
 
 class AbstractAirline(object, metaclass=ABCMeta):
     """
-    Common interface for all airlines. Airline package must provide this object in its resigration module.
+    Common interface for all airlines. Airline package must provide this object in its registration module.
     E.g. ``aeroport.airlines.air_example.registration.Airline``.
 
     So that airline autodiscover will work.
     """
 
     def __init__(self):
-        pass
+        self._settings = None
 
     @property
     @abstractmethod
@@ -196,30 +216,35 @@ class AbstractAirline(object, metaclass=ABCMeta):
         origin = kls(airline=self)
         return origin
 
-    def is_enabled(self) -> bool:
-        result = bool(
-            sqlitedb.get("airline_settings", "enabled", "airline", self.name, AIRLINE_ENABLED_BY_DEFAULT)
-        )
+    async def _get_settings_obj(self):
+        obj, _ = await objects.get_or_create(AirlineSettings, airline=self.name)
+        return obj
+
+    async def is_enabled(self) -> bool:
+        settings_obj = await self._get_settings_obj()
+        result = settings_obj.enabled
         return result
 
-    def set_is_enabled(self, value: bool) -> None:
-        sqlitedb.set("airline_settings", "enabled", int(value), "airline", self.name)
+    async def set_is_enabled(self, value: bool) -> None:
+        settings_obj = await self._get_settings_obj()
+        settings_obj.enabled = value
+        await objects.update(settings_obj, only=("enabled", ))
 
-    def get_schedule(self, origin: Optional[str] = None) -> Dict:
-        schedule = sqlitedb.from_json(
-            sqlitedb.get("airline_settings", "schedule", "airline", self.name, "{}")
-        )
+    async def get_schedule(self, origin: Optional[str] = None) -> Dict:
+        settings_obj = await self._get_settings_obj()
+        schedule = settings_obj.schedule if settings_obj.schedule is not None else {}
 
         if origin is not None:
             schedule = {
-                origin: schedule.get(origin, "")
+                origin: schedule.get(origin, {})
             }
 
         return schedule
 
-    def set_schedule(self, schedule_data: Dict) -> None:
-        json_schedule = sqlitedb.to_json(schedule_data)
-        sqlitedb.set("airline_settings", "schedule", json_schedule, "airline", self.name)
+    async def set_schedule(self, schedule_data: Dict) -> None:
+        settings_obj = await self._get_settings_obj()
+        settings_obj.schedule = schedule_data
+        await objects.update(settings_obj, only=("schedule",))
 
 
 class AbstractUrlGenerator(AsyncIterable):

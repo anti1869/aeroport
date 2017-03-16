@@ -11,3 +11,9 @@ class ConsoleDestination(AbstractDestination):
 
     async def process_payload(self, payload: AbstractPayload):
         pprint(payload.as_dict)
+
+    async def prepare(self):
+        pass
+
+    async def release(self):
+        pass

@@ -1,0 +1,16 @@
+stages:
+  - package
+
+image: build-debian:latest
+before_script:
+  - source /root/.bashrc
+
+build:
+  stage: package
+  only:
+    - master
+    - triggers
+  script:
+    - pip install -U ebumpversion
+    - ebumpversion --ppath $CI_PROJECT_DIR --patch
+    - python setup.py sdist upload -r privatepypi

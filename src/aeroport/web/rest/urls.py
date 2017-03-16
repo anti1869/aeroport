@@ -3,16 +3,16 @@ Urls configuration for REST endpoint.
 """
 
 from aeroport.web.rest.views import flights, airlines
-from aeroport.web.rest.views.generic import NotImplementedView
+from aeroport.web.rest.views.generic import NotImplementedView, NavigationView
 
 urlconf = (
 
     # API mainpage
-    ("GET", "/", NotImplementedView),
+    ("GET", "/", NavigationView),
 
     # Jobs
-    ("GET", "/jobs/", NotImplementedView),
-    ("POST", "/jobs/", flights.FlightsListView),
+    ("GET", "/flights/", flights.FlightsListView),
+    ("POST", "/flights/", flights.FlightsListView),
 
     # Airlines & origins
     ("GET", "/airlines/", airlines.AirlinesListView),

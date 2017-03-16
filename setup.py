@@ -6,7 +6,7 @@ if sys.version_info < (3, 5):
 
 
 PACKAGE_NAME = "aeroport"
-VERSION = "0.0.3a1"
+VERSION = "0.0.3"
 QUICK_DESCRIPTION = "Organize hub for data arrival / departures"
 SOURCE_DIR_NAME = "src"
 
@@ -40,8 +40,11 @@ setup(
     ],
     install_requires=[
         "aiocron",
+        "aiopg",
         "beautifulsoup4",
         "colorlog",
+        "peewee_async",
+        # "psycopg2",
         "sunhead",
         "splinter",
     ],

@@ -5,10 +5,17 @@ Command line interface commands, available in this app.
 import argparse
 import asyncio
 from typing import Any
+import logging
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 from sunhead.cli.abc import Command
 
-from aeroport import management
+
+logger = logging.getLogger(__name__)
 
 
 class RunInLoopMixin(object):
@@ -19,6 +26,32 @@ class RunInLoopMixin(object):
         return result
 
 
+class InitDB(Command):
+    """
+    Create tables and stuff.
+    """
+
+    def handler(self, options) -> None:
+        """Drop and create tables"""
+        from aeroport.db import create_tables, drop_tables, get_all_models
+        all_models = get_all_models()
+        names = set(options["tables"].lower().split(","))
+        selected_models = all_models if options["tables"].lower() == "all" \
+            else tuple(filter(lambda x: x.__name__.lower() in names, all_models))
+
+        drop_tables(models=selected_models)
+        create_tables(models=selected_models)
+
+    def get_parser(self):
+        parser_command = argparse.ArgumentParser(description=self.handler.__doc__)
+        parser_command.add_argument(
+            "tables",
+            type=str,
+            help="Tables to recreate (comma separated, ALL=all)",
+        )
+        return parser_command
+
+
 class Airlines(Command):
     """
     List airlines, registered with this aeroport installation.
@@ -27,7 +60,8 @@ class Airlines(Command):
     def handler(self, options) -> None:
         """Print list of registered airlines"""
 
-        for airline in management.get_airlines_list():
+        from aeroport.management.utils import get_airlines_list
+        for airline in get_airlines_list():
             print("{} ({})".format(airline.name, airline.module_path))
 
     def get_parser(self):
@@ -43,8 +77,8 @@ class Origins(Command):
         """Print list of origins, available in airline"""
 
         # TODO: Graceful error exceptions here
-
-        airline = management.get_airline(options["airline"])
+        from aeroport.management.utils import get_airline
+        airline = get_airline(options["airline"])
         for origin in airline.get_origin_list():
             print("{} {} ({})".format(airline.name, origin.name, origin.module_path))
 
@@ -65,19 +99,30 @@ class Process(RunInLoopMixin, Command):
 
     def handler(self, options) -> None:
         """Run collecting data"""
-        airline = management.get_airline(options["airline"])
-        origin = airline.get_origin(options["origin"])
 
         # TODO: Set destination here
         # TODO: Better DB handling
 
-        from aeroport.db import sqlitedb
-        from sunhead.conf import settings
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._handler(options))
 
-        sqlitedb.set_db_path(settings.DB_PATH)
-        sqlitedb.connect()
-        sqlitedb.ensure_tables()
-        self.run_in_loop(origin.process())
+    async def _handler(self, options):
+        from aeroport.dispatch import process_origin, ProcessingException
+
+        try:
+            origin_options = json.loads(options["options"]) if options["options"] else {}
+        except json.JSONDecodeError:
+            logger.error("Origins options must be valid JSON.", exc_info=True)
+            origin_options = None
+            quit(-1)
+
+        try:
+            await process_origin(
+                options["airline"], options["origin"], options.get("destination"),
+                use_await=True, **origin_options
+            )
+        except ProcessingException:
+            quit(-1)
 
     def get_parser(self):
         parser_command = argparse.ArgumentParser(description=self.handler.__doc__)
@@ -98,9 +143,9 @@ class Process(RunInLoopMixin, Command):
             help="Specific destination",
         )
         parser_command.add_argument(
-            "-t",
-            dest="target",
+            "-o",
+            dest="options",
             type=str,
-            help="Specific destination target role",
+            help="Origin processing options in JSON",
         )
         return parser_command

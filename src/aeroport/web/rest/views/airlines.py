@@ -9,7 +9,7 @@ import simplejson as json
 
 from sunhead.rest.views import JSONView
 
-from aeroport import management
+from aeroport.management.utils import get_airlines_list, get_airline
 
 
 class BaseAirlineView(JSONView):
@@ -39,7 +39,7 @@ class AirlinesListView(BaseAirlineView):
             {
                 "name": airline.name,
                 "module_path": airline.module_path
-            } for airline in management.get_airlines_list()
+            } for airline in get_airlines_list()
         ]
         ctx = {
             "airlines": airlines_data,
@@ -50,7 +50,7 @@ class AirlinesListView(BaseAirlineView):
 class AirlineView(BaseAirlineView):
 
     async def get(self):
-        airline = management.get_airline(self.requested_airline)
+        airline = get_airline(self.requested_airline)
         origins_data = [
             {
                 "name": origin.name,
@@ -63,14 +63,14 @@ class AirlineView(BaseAirlineView):
                 "title": airline.title,
             },
             "origins": origins_data,
-            "enabled": airline.is_enabled(),
-            "schedule": airline.get_schedule(),
+            "enabled": await airline.is_enabled(),
+            "schedule": await airline.get_schedule(),
             "targets": {},
         }
         return self.json_response(ctx)
 
     async def put(self):
-        airline = management.get_airline(self.requested_airline)
+        airline = get_airline(self.requested_airline)
         data = await self.request.post()
         schedule_json = data.get("schedule", None)
         if schedule_json is not None:
@@ -80,7 +80,7 @@ class AirlineView(BaseAirlineView):
         enabled = data.get("enabled", None)
         if enabled is not None:
             value = str(enabled).lower() in {"true", "1"}
-            airline.set_is_enabled(value)
+            await airline.set_is_enabled(value)
 
         raise web_exceptions.HTTPNoContent
 
@@ -88,7 +88,7 @@ class AirlineView(BaseAirlineView):
 class OriginView(BaseAirlineView):
 
     async def get(self):
-        airline = management.get_airline(self.requested_airline)
+        airline = get_airline(self.requested_airline)
         origin = airline.get_origin(self.requested_origin)
         ctx = {
             "airline": {
@@ -98,6 +98,6 @@ class OriginView(BaseAirlineView):
             "origin": {
                 "name": self.requested_origin,  # Fixme: Add property name in Origin object
             },
-            "schedule": airline.get_schedule(self.requested_origin),
+            "schedule": await airline.get_schedule(self.requested_origin),
         }
         return self.json_response(ctx)
