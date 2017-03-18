@@ -9,6 +9,8 @@ PORT = "31130"
 
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 
+CONFIG_FILENAME = os.environ.get("STORE_CONFIG_FILE", "aeroport.yml")
+
 AIRLINES_MOUNT_POINT = "aeroport.airlines"
 AIRLINE_CLASS_PATH_TEMPLATE = "%s.{name}.registration.Airline" % AIRLINES_MOUNT_POINT
 
@@ -34,7 +36,7 @@ DATABASE = {
         "user": os.environ.get("AERORPORT_DB_USER", ""),
         "password": os.environ.get("AERORPORT_DB_PASSWORD", ""),
         "host": os.environ.get("AERORPORT_DB_HOST", "localhost"),
-        "port": int(os.environ.get("AERORPORT_DB_VPORT", 5432)),
+        "port": int(os.environ.get("AERORPORT_DB_PORT", 5432)),
         "register_hstore": False,
         # "max_connections": 20,
     }
