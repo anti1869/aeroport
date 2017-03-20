@@ -14,14 +14,14 @@ class NotImplementedView(JSONView):
 class NavigationView(JSONView):
 
     async def get(self):
+        from sunhead.conf import settings
         from aeroport.web.rest.urls import urlconf
-        from aeroport.web.server import REST_URL_PREFIX
         nav =[
             {
                 "url": "{}://{}/{}/{}".format(
                     self.request.scheme,
                     self.request.host,
-                    REST_URL_PREFIX.strip("/"),
+                    settings.REST_URL_PREFIX.strip("/"),
                     path.lstrip("/")
                 )
             }
