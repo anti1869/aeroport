@@ -2,7 +2,6 @@
 HTTP server, providing Admin interface and some APIs.
 """
 
-import asyncio
 from functools import partial
 import logging
 import os
@@ -20,8 +19,6 @@ from aeroport.web.rest.urls import urlconf as rest_urlconf
 
 logger = logging.getLogger(__name__)
 
-REST_URL_PREFIX = "/api/v1.0"
-
 
 class AeroportHTTPServer(Server):
 
@@ -34,7 +31,7 @@ class AeroportHTTPServer(Server):
         return tuple(mapped)
 
     def get_urlpatterns(self):
-        urls = self._map_to_prefix(REST_URL_PREFIX, rest_urlconf)
+        urls = self._map_to_prefix(settings.REST_URL_PREFIX, rest_urlconf)
         return urls
 
     def print_banner(self):

@@ -2,8 +2,6 @@
 Airline settings & info views.
 """
 
-import asyncio
-
 from aiohttp import web_exceptions
 import simplejson as json
 
