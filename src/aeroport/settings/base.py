@@ -16,6 +16,7 @@ AIRLINE_CLASS_PATH_TEMPLATE = "%s.{name}.registration.Airline" % AIRLINES_MOUNT_
 
 DATA_DIR = os.environ.get("AERORPORT_DATA_DIR", os.path.expanduser("~/aeroport"))
 DB_PATH = os.path.join(DATA_DIR, "aeroport.db")
+REST_URL_PREFIX = "/api/v1.0"
 
 FILE_URL_CACHE = {
     "storage": {

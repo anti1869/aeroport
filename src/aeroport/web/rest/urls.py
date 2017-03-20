@@ -2,7 +2,7 @@
 Urls configuration for REST endpoint.
 """
 
-from aeroport.web.rest.views import flights, airlines
+from aeroport.web.rest.views import destinations, flights, airlines
 from aeroport.web.rest.views.generic import NotImplementedView, NavigationView
 
 urlconf = (
@@ -13,6 +13,13 @@ urlconf = (
     # Jobs
     ("GET", "/flights/", flights.FlightsListView),
     ("POST", "/flights/", flights.FlightsListView),
+
+    # Destinations
+    ("GET", "/destinations/", destinations.DestinationsListView),
+    ("POST", "/destinations/", destinations.DestinationsListView),
+    ("GET", "/destinations/{destination}/", destinations.DestinationView),
+    ("PUT", "/destinations/{destination}/", destinations.DestinationView),
+    ("DELETE", "/destinations/{destination}/", destinations.DestinationView),
 
     # Airlines & origins
     ("GET", "/airlines/", airlines.AirlinesListView),
