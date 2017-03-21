@@ -45,6 +45,8 @@ setup(
         "colorlog",
         "peewee_async",
         # "psycopg2",
+        "raven",
+        "raven-aiohttp",
         "sunhead",
         "splinter",
     ],
