@@ -1,5 +1,6 @@
 stages:
   - package
+  - deploy
 
 image: build-debian:latest
 before_script:
@@ -14,3 +15,13 @@ build:
     - pip install -U ebumpversion
     - ebumpversion --ppath $CI_PROJECT_DIR --patch
     - python setup.py sdist upload -r privatepypi
+
+deploy_production:
+  stage: deploy
+  environment: production
+  only:
+    - master
+    - triggers
+  script:
+    - pip install fabric3
+    - cd $CI_PROJECT_DIR && fab -R production deploy
