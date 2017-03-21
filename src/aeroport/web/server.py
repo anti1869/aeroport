@@ -3,6 +3,7 @@ HTTP server, providing Admin interface and some APIs.
 """
 
 from functools import partial
+from itertools import chain
 import logging
 import os
 
@@ -11,6 +12,7 @@ import aiocron
 from sunhead.conf import settings
 from sunhead.cli.banners import print_banner
 from sunhead.workers.http.server import Server
+from sunhead.workers.http.ext.runtime import ServerStatsMixin
 
 from aeroport.management.utils import get_airlines_list, get_airline
 from aeroport.dispatch import process_origin
@@ -20,18 +22,19 @@ from aeroport.web.rest.urls import urlconf as rest_urlconf
 logger = logging.getLogger(__name__)
 
 
-class AeroportHTTPServer(Server):
+class AeroportHTTPServer(ServerStatsMixin, Server):
 
     @property
     def app_name(self):
-        return "AeroportHTTPServer"
+        return "aeroport"
 
     def _map_to_prefix(self, urlprefix: str, urlconf: tuple) -> tuple:
         mapped = ((method, urlprefix + url, view) for method, url, view in urlconf)
         return tuple(mapped)
 
     def get_urlpatterns(self):
-        urls = self._map_to_prefix(settings.REST_URL_PREFIX, rest_urlconf)
+        super_urls = super().get_urlpatterns()
+        urls = chain(super_urls, self._map_to_prefix(settings.REST_URL_PREFIX, rest_urlconf))
         return urls
 
     def print_banner(self):
@@ -40,6 +43,7 @@ class AeroportHTTPServer(Server):
         super().print_banner()
 
     def init_requirements(self, loop):
+        super().init_requirements(loop)
         loop.run_until_complete(self.set_timetable(loop))
 
     def cleanup(self, srv, handler, loop):
