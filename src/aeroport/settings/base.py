@@ -4,6 +4,9 @@ Base application settings.
 
 import os
 
+from aeroport import __version__ as PKG_VERSION
+
+
 HOST = "0.0.0.0"
 PORT = "31130"
 
