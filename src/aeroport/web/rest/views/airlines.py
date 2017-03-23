@@ -73,7 +73,7 @@ class AirlineView(BaseAirlineView):
         schedule_json = data.get("schedule", None)
         if schedule_json is not None:
             schedule = json.loads(schedule_json)
-            airline.set_schedule(schedule)
+            await airline.set_schedule(schedule)
 
         enabled = data.get("enabled", None)
         if enabled is not None:
