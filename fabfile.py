@@ -59,7 +59,7 @@ def deploy_app():
     """
     print("Deploying app")
     with virtualenv():
-        run("pip install -U -qq aeroport")
+        run('pip install -U -qq "aiohttp>=1.0.5,<2.0" aeroport')
         # run("manage.py migrate --settings={}".format(get_setting('settings')))
 
     restart_app_server()
