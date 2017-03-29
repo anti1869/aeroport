@@ -2,10 +2,13 @@
 Urls configuration for REST endpoint.
 """
 
-from aeroport.web.rest.views import destinations, flights, airlines
+from aeroport.web.rest.views import destinations, flights, airlines, swagger
 from aeroport.web.rest.views.generic import NotImplementedView, NavigationView
 
 urlconf = (
+
+    # Docs
+    ("*", "/swagger.yml", swagger.Swagger),
 
     # API mainpage
     ("GET", "/", NavigationView),
