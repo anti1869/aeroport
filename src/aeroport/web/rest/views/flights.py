@@ -2,17 +2,18 @@
 Processing jobs views
 """
 
-import asyncio
 import logging
 
 from aiohttp import web_exceptions
 
 from sunhead.rest.views import JSONView
+from sunhead.serializers.json import JSONSerializer
 
 from aeroport.dispatch import FlightRecord, process_origin, ProcessingException
 
 
 logger = logging.getLogger(__name__)
+serializer = JSONSerializer()
 
 
 class FlightsListView(JSONView):
@@ -42,11 +43,15 @@ class FlightsListView(JSONView):
         airline_name = data.get("airline", None)
         origin_name = data.get("origin", None)
         destination_name = data.get("destination", None)
+        options = serializer.deserialize(data.get("options", "{}"))
         if not all((airline_name, origin_name)):
             raise web_exceptions.HTTPBadRequest
 
         try:
-            await process_origin(airline_name, origin_name, destination_name)
+            await process_origin(
+                airline_name, origin_name, destination_name,
+                use_await=False, **options
+            )
         except ProcessingException:
             raise web_exceptions.HTTPExpectationFailed
 

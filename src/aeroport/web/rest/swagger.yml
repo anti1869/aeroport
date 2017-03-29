@@ -1,0 +1,53 @@
+swagger: '2.0'
+info:
+  title: Aeroport API
+  description: Data arrivals and departure hub
+  version: "1.0.0"
+host: {{ host }}
+schemes:
+  - http
+basePath: /api/v1.0
+produces:
+  - application/json
+paths:
+  /flights/:
+    get:
+      summary: List of passed flights (jobs)
+      description: |
+        List of flights with short info on their statuses
+      responses:
+        200:
+          description: List of flight information structures
+    post:
+      summary: Create new flight
+      description: |
+        Create new flight. Endpoint reponds momentarily after job is created.
+        Progress can be monitored by further get requests.
+      parameters:
+        - name: airline
+          in: formData
+          description: airline identifier (name)
+          required: true
+          type: string
+        - name: origin
+          in: formData
+          description: Origin name
+          required: true
+          type: string
+        - name: destination
+          in: formData
+          description: Destination name (should be registered)
+          required: true
+          type: string
+        - name: options
+          in: formData
+          description: |
+            Options to pass into origin processor. Freeform JSON data.
+            For example, you can have these fields combination
+            origin='yml_feed', options='{"only": "mywebsite"}'.
+            So members of that options are always origin-specific.
+          required: false
+          type: string
+      responses:
+        204:
+          description: Flight created

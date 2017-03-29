@@ -1,3 +1,4 @@
 include README.md
 include LICENSE
 include src/aeroport/web/templates/logo.txt
+include src/aeroport/web/rest/swagger.yml
