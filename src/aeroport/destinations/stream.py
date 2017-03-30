@@ -3,9 +3,12 @@ Send payload to the Stream (messaging abstraction, provided by SunHead framework
 """
 
 import asyncio
+
 from sunhead.events.stream import init_stream_from_settings
+from sunhead.metrics import get_metrics
 
 from aeroport.abc import AbstractDestination, AbstractPayload
+from aeroport.utils import register_metric
 
 
 class StreamDestination(AbstractDestination):
@@ -17,6 +20,13 @@ class StreamDestination(AbstractDestination):
         super().__init__(**init_kwargs)
         self._stream = None
         self._loop = asyncio.get_event_loop()
+        self._metrics = get_metrics()
+        self._metric_sent = register_metric(
+            self._metrics,
+            "counter",
+            "stream_payloads_sent_total",
+            ""
+        )
 
     async def prepare(self):
         self._stream = await init_stream_from_settings(self._init_kwargs)
@@ -28,3 +38,4 @@ class StreamDestination(AbstractDestination):
     async def process_payload(self, payload: AbstractPayload):
         pname = payload.__class__.__name__.lower()
         await self._stream.publish(payload.as_dict, ("aeroport.payload_sent.{}".format(pname), ))
+        self._metrics.counters.get(self._metric_sent).inc()

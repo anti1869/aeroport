@@ -47,6 +47,9 @@ class AeroportHTTPServer(ServerStatsMixin, Server):
         metrics = get_metrics()
         metrics.app_name_prefix = self.app_name
 
+        if settings.SERVE_SWAGGER_UI:
+            self.app.router.add_static(settings.SWAGGER_UI_PREFIX, settings.SWAGGER_UI_DIR)
+
         super().init_requirements(loop)
         loop.run_until_complete(self.set_timetable(loop))
 
