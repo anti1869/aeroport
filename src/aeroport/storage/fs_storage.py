@@ -108,8 +108,6 @@ class FileSystemStorage(AbstractStorage):
                 # chunk = await file_data.read_chunk()
                 # TODO: Distinguish between aiohttp and generic (if there is content present)
                 chunk = await data.content.read(1024 * 256)
-                import asyncio
-                await asyncio.sleep(1)
                 if not chunk:
                     break
                 size += len(chunk)
