@@ -101,7 +101,7 @@ class FileUrlCache(object):
         await self._storage.remove(self._bucket, as_filename)
         async with aiohttp.ClientSession(read_timeout=self.DOWNLOAD_TIMEOUT) as session:
             with aiohttp.Timeout(self.DOWNLOAD_TIMEOUT):
-                async with session.get(url) as response:
+                async with session.get(url, timeout=self.DOWNLOAD_TIMEOUT) as response:
                     assert response.status == 200
                     cached_file = await self._storage.put(self._bucket, as_filename, response)
 
