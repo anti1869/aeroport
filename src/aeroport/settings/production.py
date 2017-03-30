@@ -15,7 +15,7 @@ DEBUG_AUTORELOAD_APP = False
 
 LOGGING["formatters"].update({
     "main_formatter": {
-      "format": "s%(levelname)-8s [%(name)s:%(lineno)s] %(message)s",
+      "format": "%(levelname)-8s [%(name)s:%(lineno)s] %(message)s",
     }
 })
 
