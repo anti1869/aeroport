@@ -8,6 +8,7 @@ from sunhead.events.stream import init_stream_from_settings
 from sunhead.metrics import get_metrics
 
 from aeroport.abc import AbstractDestination, AbstractPayload
+from aeroport.utils import register_metric
 
 
 class StreamDestination(AbstractDestination):
@@ -20,8 +21,12 @@ class StreamDestination(AbstractDestination):
         self._stream = None
         self._loop = asyncio.get_event_loop()
         self._metrics = get_metrics()
-        self._metric_sent = self._metrics.prefix("stream_payloads_sent_total")
-        self._metrics.add_counter(self._metric_sent, "")
+        self._metric_sent = register_metric(
+            self._metrics,
+            "counter",
+            "stream_payloads_sent_total",
+            ""
+        )
 
     async def prepare(self):
         self._stream = await init_stream_from_settings(self._init_kwargs)

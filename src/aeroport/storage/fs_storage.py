@@ -9,6 +9,7 @@ from sunhead.metrics import get_metrics
 from aeroport.storage.abc import AbstractStorage, ObjectInStorage
 from aeroport.storage import storage_executor
 from aeroport.storage import exceptions
+from aeroport.utils import register_metric
 
 
 logger = logging.getLogger(__name__)
@@ -22,8 +23,7 @@ class FileSystemStorage(AbstractStorage):
         super().__init__(*args, **kwargs)
 
         self._metrics = get_metrics()
-        self._metric_fs_storage_put_kb_total = self._metrics.prefix("fs_storage_put_kb_total")
-        self._metrics.add_counter(self._metric_fs_storage_put_kb_total, "")
+        self._metric_kb = register_metric(self._metrics, "counter", "fs_storage_put_kb_total", "")
 
         self._url_template = url_template
         self._storage_path = storage_path
@@ -111,8 +111,7 @@ class FileSystemStorage(AbstractStorage):
                 if not chunk:
                     break
                 size += len(chunk)
-                self._metrics.counters.get(self._metric_fs_storage_put_kb_total)\
-                    .inc(len(chunk) / 1024.0)
+                self._metrics.counters.get(self._metric_kb).inc(len(chunk) / 1024.0)
                 cnt += 1
                 if cnt >= 20:
                     logger.info("%.2f Mb put to storage", size / 1024.0 / 1024.0)
