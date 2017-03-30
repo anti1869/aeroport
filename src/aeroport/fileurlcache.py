@@ -99,7 +99,7 @@ class FileUrlCache(object):
     async def download_to_cache(self, url: str, as_filename: str) -> ObjectInStorage:
         logger.info("Downloading to cache, filename=%s", as_filename)
         await self._storage.remove(self._bucket, as_filename)
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(read_timeout=self.DOWNLOAD_TIMEOUT) as session:
             with aiohttp.Timeout(self.DOWNLOAD_TIMEOUT):
                 async with session.get(url) as response:
                     assert response.status == 200
