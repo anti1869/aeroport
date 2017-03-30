@@ -4,6 +4,8 @@ import os
 import shutil
 from typing import BinaryIO, Iterable, Optional
 
+from sunhead.metrics import get_metrics
+
 from aeroport.storage.abc import AbstractStorage, ObjectInStorage
 from aeroport.storage import storage_executor
 from aeroport.storage import exceptions
@@ -18,6 +20,10 @@ class FileSystemStorage(AbstractStorage):
 
     def __init__(self, url_template: str, storage_path: str, fs_nesting_depth: int = 2, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self._metrics = get_metrics()
+        self._metric_fs_storage_put_kb_total = self._metrics.prefix("fs_storage_put_kb_total")
+        self._metrics.add_counter(self._metric_fs_storage_put_kb_total, "")
 
         self._url_template = url_template
         self._storage_path = storage_path
@@ -102,9 +108,13 @@ class FileSystemStorage(AbstractStorage):
                 # chunk = await file_data.read_chunk()
                 # TODO: Distinguish between aiohttp and generic (if there is content present)
                 chunk = await data.content.read(1024 * 256)
+                import asyncio
+                await asyncio.sleep(1)
                 if not chunk:
                     break
                 size += len(chunk)
+                self._metrics.counters.get(self._metric_fs_storage_put_kb_total)\
+                    .inc(len(chunk) / 1024.0)
                 cnt += 1
                 if cnt >= 20:
                     logger.info("%.2f Mb put to storage", size / 1024.0 / 1024.0)

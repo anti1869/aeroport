@@ -11,6 +11,7 @@ import aiocron
 
 from sunhead.conf import settings
 from sunhead.cli.banners import print_banner
+from sunhead.metrics import get_metrics
 from sunhead.workers.http.server import Server
 from sunhead.workers.http.ext.runtime import ServerStatsMixin
 
@@ -43,6 +44,9 @@ class AeroportHTTPServer(ServerStatsMixin, Server):
         super().print_banner()
 
     def init_requirements(self, loop):
+        metrics = get_metrics()
+        metrics.app_name_prefix = self.app_name
+
         super().init_requirements(loop)
         loop.run_until_complete(self.set_timetable(loop))
 
